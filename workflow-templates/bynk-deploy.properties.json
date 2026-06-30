@@ -1,0 +1,7 @@
+{
+  "name": "Deploy Bynk to Cloudflare",
+  "description": "Compile a Bynk project and deploy its Cloudflare Worker(s) with wrangler.",
+  "iconName": "bynk",
+  "categories": ["Deployment", "Bynk", "Cloudflare"],
+  "filePatterns": ["bynk\\.toml$"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Bynk CI",
+  "description": "Format check, type check, and test a Bynk project, with diagnostics annotated on pull requests.",
+  "iconName": "bynk",
+  "categories": ["Continuous integration", "Bynk", "Rust"],
+  "filePatterns": ["bynk\\.toml$", ".*\\.bynk$"]
+}
