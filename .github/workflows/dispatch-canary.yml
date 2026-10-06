@@ -1,0 +1,110 @@
+# The central canary dispatcher: resolves one exact Bynk version, then sends a
+# `bynk-canary` repository_dispatch to every repository in canary/repos.json.
+# Each of those runs workflow-templates/bynk-canary.yml, which calls canary.yml.
+#
+# Needs a GitHub App with Contents: read & write on the enrolled repositories,
+# in the secrets CANARY_APP_ID and CANARY_APP_PRIVATE_KEY. See canary/README.md.
+name: Dispatch canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Bynk version, exact ("0.303.4") or "latest"
+        type: string
+        default: latest
+      repos:
+        description: Only these repositories (owner/name, comma- or space-separated); empty for all
+        type: string
+        default: ""
+  # Sent by accuser/bynk's release workflow: client_payload.version
+  repository_dispatch:
+    types: [bynk-release]
+  # Weekly. Subject to GitHub's 60-day inactivity rule; see canary/README.md.
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dispatch-canary
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Once, so every repository tests the same release even if another is
+      # published mid-fan-out.
+      - name: Resolve the Bynk version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
+        run: canary/scripts/dispatch.sh resolve
+
+      - name: Describe the trigger
+        id: reason
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          case "$EVENT" in
+            repository_dispatch) reason="release v${VERSION}" ;;
+            schedule)            reason="weekly schedule" ;;
+            workflow_dispatch)   reason="manual run by @${ACTOR}" ;;
+            *)                   reason="$EVENT" ;;
+          esac
+          echo "reason=${reason}" >> "$GITHUB_OUTPUT"
+
+      # An empty registry (or filter) has nothing to send, and needs no App.
+      - name: Count the targets
+        id: targets
+        env:
+          FILTER: ${{ inputs.repos }}
+        run: |
+          if [ -n "$FILTER" ]; then
+            count="$(tr -s ', \t' '\n' <<<"$FILTER" | grep -c . || true)"
+          else
+            count="$(jq '.repos | length' canary/repos.json)"
+          fi
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+
+      - name: Check the App secrets
+        if: steps.targets.outputs.count != '0'
+        env:
+          APP_ID: ${{ secrets.CANARY_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.CANARY_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error::The canary GitHub App is not configured: set the CANARY_APP_ID and CANARY_APP_PRIVATE_KEY secrets on bynk-lang/.github (see canary/README.md)"
+            exit 1
+          fi
+
+      # An installation token for the whole org installation, not scoped by
+      # `repositories:`, so one repository the App is missing from fails only
+      # its own dispatch.
+      - name: App token
+        id: app
+        if: steps.targets.outputs.count != '0'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.CANARY_APP_ID }}
+          private-key: ${{ secrets.CANARY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-contents: write
+
+      - name: Dispatch
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+          REASON: ${{ steps.reason.outputs.reason }}
+          FILTER: ${{ inputs.repos }}
+        run: canary/scripts/dispatch.sh send

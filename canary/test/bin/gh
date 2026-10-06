@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# A fake `gh` for the script tests. It logs each call to $FAKE_GH_LOG (one line
+# per call: the arguments, then any --input body) and answers from fixtures:
+#
+#   FAKE_ISSUES        JSON returned by GET repos/*/issues (default [])
+#   FAKE_LABEL         1 if the canary label exists (default 1)
+#   FAKE_LATEST        tag returned by releases/latest (default v0.303.4)
+#   FAKE_RELEASES      space-separated tags that exist (default v0.303.4)
+#   FAKE_FAIL_REPOS    space-separated repos whose dispatch fails with 404
+#
+# Like `gh api`, it applies --jq to the response.
+set -euo pipefail
+
+args=("$@")
+[ "${args[0]:-}" = api ] || { echo "fake gh: only 'api' is supported" >&2; exit 2; }
+method=GET path="" jqf="" input=""
+i=1
+while [ $i -lt ${#args[@]} ]; do
+  a="${args[$i]}"
+  case "$a" in
+    -X) i=$((i + 1)); method="${args[$i]}" ;;
+    --jq) i=$((i + 1)); jqf="${args[$i]}" ;;
+    --input) i=$((i + 1)); input="$(cat)" ;;
+    -f|-F) i=$((i + 1)) ;;
+    --silent) ;;
+    -*) echo "fake gh: unexpected flag $a" >&2; exit 2 ;;
+    *) path="$a" ;;
+  esac
+  i=$((i + 1))
+done
+{
+  printf '%s' "$*"
+  [ -n "$input" ] && printf ' <<< %s' "$input"
+  printf '\n'
+} >>"${FAKE_GH_LOG:?}"
+
+respond() { if [ -n "$jqf" ]; then jq -r "$jqf" <<<"$1"; else printf '%s\n' "$1"; fi; }
+http_error() { echo "gh: $1 (HTTP ${2})" >&2; exit 1; }
+
+case "$method $path" in
+  "GET repos/"*/issues) respond "${FAKE_ISSUES:-[]}" ;;
+  "GET repos/"*/labels/canary) [ "${FAKE_LABEL:-1}" = 1 ] || http_error "Not Found" 404 ;;
+  "POST repos/"*/labels) respond '{"name":"canary"}' ;;
+  "POST repos/"*/issues) respond '{"number":101}' ;;
+  "POST repos/"*/comments) respond '{"id":1}' ;;
+  "PATCH repos/"*/issues/*) respond '{"state":"closed"}' ;;
+  "GET repos/"*/releases/latest) respond "{\"tag_name\":\"${FAKE_LATEST:-v0.303.4}\"}" ;;
+  "GET repos/"*/releases/tags/*)
+    tag="${path##*/}"
+    case " ${FAKE_RELEASES:-v0.303.4} " in *" $tag "*) respond "{\"tag_name\":\"$tag\"}" ;; *) http_error "Not Found" 404 ;; esac ;;
+  "POST repos/"*/dispatches)
+    repo="${path#repos/}"; repo="${repo%/dispatches}"
+    case " ${FAKE_FAIL_REPOS:-} " in *" $repo "*) http_error "Not Found" 404 ;; esac ;;
+  *) echo "fake gh: unexpected call: $method $path" >&2; exit 2 ;;
+esac

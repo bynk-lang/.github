@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# A fake `curl` for the report test: records the headers and the exact body
+# bytes in $FAKE_CURL_DIR, and fails (exit 22, like --fail) if FAKE_CURL_FAIL=1.
+set -euo pipefail
+dir="${FAKE_CURL_DIR:?}"
+: >"$dir/headers"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -H) printf '%s\n' "$2" >>"$dir/headers"; shift ;;
+    --data-binary) cp "${2#@}" "$dir/body"; shift ;;
+    -X) printf '%s\n' "$2" >"$dir/method"; shift ;;
+    -o) out="$2"; shift ;;
+    --max-time|--retry) shift ;;
+    -*) ;;
+    *) printf '%s\n' "$1" >"$dir/url" ;;
+  esac
+  shift
+done
+if [ "${FAKE_CURL_FAIL:-0}" = 1 ]; then
+  echo '{"error":"bad signature"}' >"${out:-/dev/null}"
+  echo "curl: (22) The requested URL returned error: 401" >&2
+  exit 22
+fi
+echo '{"ok":true}' >"${out:-/dev/null}"

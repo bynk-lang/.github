@@ -1,0 +1,45 @@
+# Bynk canary: re-run this repository's checks against a new Bynk release, and
+# keep a `canary` issue open while they fail.
+#
+# There is deliberately no `schedule` here. GitHub disables scheduled workflows
+# in a public repository after 60 days without activity; instead, the central
+# dispatcher in bynk-lang/.github sends a `bynk-canary` repository_dispatch to
+# every enrolled repository when Bynk is released (and weekly).
+#
+# To enrol, as well as adding this file to the default branch:
+#   1. add the repository to canary/repos.json in bynk-lang/.github, with its
+#      `kind` (`example` or `action`, matching `kind:` below);
+#   2. install the org's canary GitHub App on the repository.
+# See https://github.com/bynk-lang/.github/blob/main/canary/README.md
+name: Bynk canary
+
+on:
+  repository_dispatch:
+    types: [bynk-canary]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Bynk version, exact ("0.303.4") or "latest"
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  canary:
+    name: Canary
+    uses: bynk-lang/.github/.github/workflows/canary.yml@v1
+    with:
+      version: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
+      kind: example          # `action` for one of the org's actions
+      source: src            # `.` to include a tests/ directory
+      # bynk-ci@v1 passes `source` to `bynkc fmt --check`, which takes files
+      # only, so its format check fails on a directory. Off until that's fixed.
+      format: false
+      # deploy-dry-run: true # also plan a deploy with bynk-deploy@v2, offline
+    secrets:
+      # Optional: report results to the compat board. Skipped unless both are set.
+      report-url: ${{ secrets.BYNK_CANARY_REPORT_URL }}
+      report-key: ${{ secrets.BYNK_CANARY_REPORT_KEY }}

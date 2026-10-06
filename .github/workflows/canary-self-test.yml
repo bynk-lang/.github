@@ -1,0 +1,98 @@
+# Calls canary.yml from this commit against the fixture in canary/test/fixture:
+# at a pinned version and at latest (both must pass), and with `source` pointed
+# at a deliberate type error (must report `fail` without failing this run).
+name: Canary self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Keep in step with the `version:` of the pinned and broken jobs (the env
+# context is not available to a reusable workflow's `with:`).
+env:
+  PINNED: 0.303.4
+
+jobs:
+  pinned:
+    name: Pinned
+    uses: ./.github/workflows/canary.yml
+    permissions:
+      contents: read
+      issues: write   # canary.yml's result job asks for it; open-issue is off
+    with:
+      version: 0.303.4
+      working-directory: canary/test/fixture
+      source: .
+      # bynk-ci@v1 runs `bynkc fmt --check <source>`, and fmt takes files only.
+      format: false
+      deploy-dry-run: true
+      open-issue: false
+      canary-ref: ${{ github.sha }}
+
+  latest:
+    name: Latest
+    uses: ./.github/workflows/canary.yml
+    permissions:
+      contents: read
+      issues: write
+    with:
+      version: latest
+      working-directory: canary/test/fixture
+      source: .
+      format: false
+      open-issue: false
+      canary-ref: ${{ github.sha }}
+
+  broken:
+    name: Broken (meant to fail)
+    uses: ./.github/workflows/canary.yml
+    permissions:
+      contents: read
+      issues: write
+    with:
+      version: 0.303.4
+      working-directory: canary/test/fixture
+      source: broken
+      format: false
+      open-issue: false
+      fail-run: false
+      canary-ref: ${{ github.sha }}
+
+  assert:
+    name: Assert
+    needs: [pinned, latest, broken]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED_RESULT: ${{ needs.pinned.outputs.result }}
+          PINNED_VERSION: ${{ needs.pinned.outputs.bynk-version }}
+          LATEST_RESULT: ${{ needs.latest.outputs.result }}
+          LATEST_VERSION: ${{ needs.latest.outputs.bynk-version }}
+          BROKEN_RESULT: ${{ needs.broken.outputs.result }}
+          BROKEN_VERSION: ${{ needs.broken.outputs.bynk-version }}
+          BROKEN_JOB: ${{ needs.broken.result }}
+        run: |
+          set -u
+          failed=0
+          expect() { # <what> <got> <want>
+            if [ "$2" = "$3" ]; then echo "ok: $1 = $2"
+            else echo "::error::$1 is '$2', expected '$3'"; failed=1; fi
+          }
+          latest="$(gh api repos/accuser/bynk/releases/latest --jq .tag_name)"
+          expect "pinned result" "$PINNED_RESULT" pass
+          expect "pinned bynk-version" "$PINNED_VERSION" "$PINNED"
+          expect "latest result" "$LATEST_RESULT" pass
+          expect "latest bynk-version" "$LATEST_VERSION" "${latest#v}"
+          expect "broken result" "$BROKEN_RESULT" fail
+          expect "broken bynk-version" "$BROKEN_VERSION" "$PINNED"
+          # fail-run: false, so the deliberate break does not fail its job.
+          expect "broken job" "$BROKEN_JOB" success
+          exit "$failed"
