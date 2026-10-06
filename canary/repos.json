@@ -5,6 +5,16 @@
       "repo": "bynk-lang/bynk-deploy",
       "kind": "action",
       "description": "Deploy action, dry-run fixtures"
+    },
+    {
+      "repo": "bynk-lang/setup-bynk",
+      "kind": "action",
+      "description": "Install action: every target, cache, version forms"
+    },
+    {
+      "repo": "bynk-lang/bynk-ci",
+      "kind": "action",
+      "description": "CI action: each check against pass/fail fixtures"
     }
   ]
 }
