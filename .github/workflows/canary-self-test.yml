@@ -12,8 +12,8 @@ on:
 permissions:
   contents: read
 
-# Keep in step with the `version:` of the pinned and broken jobs (the env
-# context is not available to a reusable workflow's `with:`).
+# Keep in step with the `version:` of the pinned, broken and upstream jobs
+# (the env context is not available to a reusable workflow's `with:`).
 env:
   PINNED: 0.307.0
 
@@ -59,9 +59,26 @@ jobs:
       fail-run: false
       canary-ref: ${{ github.sha }}
 
+  # The passing fixture, with the caller reporting that its own checks failed:
+  # the canary must report `fail`.
+  upstream:
+    name: Upstream failure (meant to fail)
+    uses: ./.github/workflows/canary.yml
+    permissions:
+      contents: read
+      issues: write
+    with:
+      version: 0.307.0
+      working-directory: canary/test/fixture
+      source: .
+      upstream-result: failure
+      open-issue: false
+      fail-run: false
+      canary-ref: ${{ github.sha }}
+
   assert:
     name: Assert
-    needs: [pinned, latest, broken]
+    needs: [pinned, latest, broken, upstream]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -75,6 +92,7 @@ jobs:
           BROKEN_RESULT: ${{ needs.broken.outputs.result }}
           BROKEN_VERSION: ${{ needs.broken.outputs.bynk-version }}
           BROKEN_JOB: ${{ needs.broken.result }}
+          UPSTREAM_RESULT: ${{ needs.upstream.outputs.result }}
         run: |
           set -u
           failed=0
@@ -91,4 +109,5 @@ jobs:
           expect "broken bynk-version" "$BROKEN_VERSION" "$PINNED"
           # fail-run: false, so the deliberate break does not fail its job.
           expect "broken job" "$BROKEN_JOB" success
+          expect "upstream result" "$UPSTREAM_RESULT" fail
           exit "$failed"
