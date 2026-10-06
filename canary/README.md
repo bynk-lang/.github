@@ -65,8 +65,9 @@ The caller must grant `contents: read` and `issues: write`, even with
 
 `bynk-ci@v1` passes `source` to `bynkc fmt --check`, and `bynkc fmt` takes files
 only: given a directory it fails with "Is a directory". That happens with every
-release tried (0.245.0, 0.290.0 and 0.303.4), not just new ones. Until bynk-ci
-handles directories, the starter workflow sets `format: false`.
+release tried (0.245.0, 0.290.0 and 0.303.4), not just new ones. Until `fmt`
+walks directories ([accuser/bynk#1753](https://github.com/accuser/bynk/issues/1753)),
+the canary and Bynk CI starter workflows turn the format check off.
 
 ## Enrolling a repository
 
