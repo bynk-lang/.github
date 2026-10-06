@@ -49,7 +49,7 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `working-directory` | `.` | The project root (holds `bynk.toml`). |
 | `source` | `src` | Passed to `bynk-ci`. Use `.` for a project with a `tests/` directory: `bynkc test src` does not see `tests/`. |
 | `ci` | `true` | Run `bynk-ci`. |
-| `format` | `true` | Run `bynk-ci`'s format check. See [the caveat](#bynk-ci-and-directories) below. |
+| `format` | `true` | Run `bynk-ci`'s format check. On a directory `source`, it needs Bynk 0.307.0 or later; see [below](#bynk-ci-and-directories). |
 | `deploy-dry-run` | `false` | Also run `bynk-deploy@v2` with `dry-run: "true"`. This is offline, so it needs no Cloudflare credentials. |
 | `open-issue` | `true` | Manage the `canary` issue. |
 | `kind` | `example` | The repository's kind in `repos.json`, sent in the report. |
@@ -63,11 +63,11 @@ The caller must grant `contents: read` and `issues: write`, even with
 
 ### bynk-ci and directories
 
-`bynk-ci@v1` passes `source` to `bynkc fmt --check`, and `bynkc fmt` takes files
-only: given a directory it fails with "Is a directory". That happens with every
-release tried (0.245.0, 0.290.0 and 0.303.4), not just new ones. Until `fmt`
-walks directories ([accuser/bynk#1753](https://github.com/accuser/bynk/issues/1753)),
-the canary and Bynk CI starter workflows turn the format check off.
+`bynk-ci@v1` passes `source` to `bynkc fmt --check`. `bynkc fmt` accepts a
+directory from **Bynk 0.307.0** ([accuser/bynk#1753](https://github.com/accuser/bynk/issues/1753)),
+and checks the same files `bynkc check` does. Before 0.307.0 it took files only,
+so a run pinned to an older version with a directory `source` fails its format
+check with "Is a directory". Set `format: false` for those.
 
 ## Enrolling a repository
 

@@ -21,7 +21,3 @@ jobs:
         with:
           version: latest   # pin an exact version for reproducible CI
           source: src
-          # `bynkc fmt` takes files only, so the format check fails on a
-          # directory source. Off until it walks directories:
-          # https://github.com/accuser/bynk/issues/1753
-          format: "false"
