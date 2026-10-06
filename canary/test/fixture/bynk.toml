@@ -1,0 +1,4 @@
+# Fixture for the canary self-test: one context, one test.
+[project]
+name = "canary-fixture"
+version = "0.1.0"

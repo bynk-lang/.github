@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bynk-lang/.github/blob/main/canary/repos.schema.json",
+  "title": "Bynk canary registry",
+  "description": "The repositories the org-wide canary re-runs against new Bynk releases. Each `repo` must be unique; CI checks that too, since JSON Schema's uniqueItems compares whole entries.",
+  "type": "object",
+  "required": ["repos"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "repos": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["repo", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": {
+          "description": "The repository, as owner/name.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+$"
+        },
+        "kind": {
+          "description": "`example`: a Bynk example project (read by the examples index and the compat board). `action`: one of the org's GitHub Actions.",
+          "enum": ["example", "action"]
+        },
+        "description": {
+          "description": "One line saying what the canary runs there.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

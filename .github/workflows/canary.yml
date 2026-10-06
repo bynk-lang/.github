@@ -1,0 +1,237 @@
+# The Bynk canary, as a reusable workflow. Each enrolled repository calls it
+# from workflow-templates/bynk-canary.yml when the central dispatcher
+# (dispatch-canary.yml) sends it a `bynk-canary` repository_dispatch.
+#
+# It runs the repository's checks against one Bynk release, then, in a result
+# job that always runs: keeps one `canary` issue per break (opened on failure,
+# commented on while it lasts, closed on the next pass), and posts the result
+# to the compat board when report-url and report-key are both set.
+# See canary/README.md.
+name: Bynk canary
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Bynk version to test, exact ("0.303.4") or "latest".
+        type: string
+        default: latest
+      working-directory:
+        description: Project root, the directory that holds bynk.toml.
+        type: string
+        default: "."
+      source:
+        description: Source path passed to bynk-ci, relative to working-directory. Use "." for a project with a tests/ directory.
+        type: string
+        default: src
+      ci:
+        description: Run bynk-ci (format check, type check, tests).
+        type: boolean
+        default: true
+      format:
+        description: >-
+          Run bynk-ci's format check. bynk-ci@v1 passes `source` to
+          `bynkc fmt --check`, which takes files only, so a directory source
+          fails this step whatever the release.
+        type: boolean
+        default: true
+      deploy-dry-run:
+        description: Also run bynk-deploy@v2 with dry-run "true" (offline, no Cloudflare credentials).
+        type: boolean
+        default: false
+      open-issue:
+        description: Open, update or close a `canary` issue in the calling repository.
+        type: boolean
+        default: true
+      kind:
+        description: The repository's kind in canary/repos.json, `example` or `action`. Sent in the report.
+        type: string
+        default: example
+      fail-run:
+        description: >-
+          Fail the workflow run when the checks fail. The self-test sets false
+          to assert on a deliberately broken fixture.
+        type: boolean
+        default: true
+      canary-ref:
+        description: >-
+          The ref of bynk-lang/.github to take the issue and report scripts
+          from. Keep it in step with the ref this workflow is called at.
+        type: string
+        default: v1
+    secrets:
+      report-url:
+        description: The compat board's POST /runs endpoint. Reporting is skipped unless this and report-key are set.
+        required: false
+      report-key:
+        description: Shared HMAC-SHA256 secret for the compat board's Signature actor.
+        required: false
+    outputs:
+      result:
+        description: '"pass" or "fail".'
+        value: ${{ jobs.result.outputs.result }}
+      bynk-version:
+        description: The exact Bynk version tested, bare ("0.303.4").
+        value: ${{ jobs.result.outputs.bynk-version }}
+
+permissions: {}
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      result: ${{ steps.outcome.outputs.result }}
+      bynk-version: ${{ steps.version.outputs.bynk-version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Resolve once; bynk-ci and bynk-deploy then install this exact version
+      # from the tool cache, so the run records what it actually tested.
+      - name: Resolve Bynk
+        id: setup
+        uses: bynk-lang/setup-bynk@v1
+        with:
+          version: ${{ inputs.version }}
+
+      - name: Record the version
+        id: version
+        env:
+          REQUESTED: ${{ inputs.version }}
+          RESOLVED: ${{ steps.setup.outputs.version }}
+        run: |
+          echo "bynk-version=${RESOLVED#v}" >> "$GITHUB_OUTPUT"
+          echo "### Bynk canary: Bynk ${RESOLVED#v} (requested \`${REQUESTED}\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bynk CI
+        id: ci
+        if: inputs.ci
+        continue-on-error: true
+        uses: bynk-lang/bynk-ci@v1
+        with:
+          version: ${{ steps.version.outputs.bynk-version }}
+          working-directory: ${{ inputs.working-directory }}
+          source: ${{ inputs.source }}
+          format: ${{ inputs.format && 'true' || 'false' }}
+
+      - name: Bynk deploy, dry run
+        id: deploy
+        if: inputs.deploy-dry-run
+        continue-on-error: true
+        uses: bynk-lang/bynk-deploy@v2
+        with:
+          version: ${{ steps.version.outputs.bynk-version }}
+          working-directory: ${{ inputs.working-directory }}
+          dry-run: "true"
+
+      # The check steps continue on error so that this job always reports an
+      # outcome; the result job decides whether the run fails.
+      - name: Outcome
+        id: outcome
+        env:
+          CI_OUTCOME: ${{ steps.ci.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+        run: |
+          result=pass
+          for o in "$CI_OUTCOME" "$DEPLOY_OUTCOME"; do
+            case "$o" in success|skipped) ;; *) result=fail ;; esac
+          done
+          if [ "$CI_OUTCOME" = skipped ] && [ "$DEPLOY_OUTCOME" = skipped ]; then
+            echo "::warning::Neither ci nor deploy-dry-run is set; nothing was checked"
+          fi
+          echo "result=${result}" >> "$GITHUB_OUTPUT"
+          {
+            echo
+            echo "| Check | Outcome |"
+            echo "| --- | --- |"
+            echo "| bynk-ci | ${CI_OUTCOME} |"
+            echo "| bynk-deploy dry run | ${DEPLOY_OUTCOME} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  result:
+    name: Result
+    needs: checks
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      result: ${{ steps.decide.outputs.result }}
+      bynk-version: ${{ steps.decide.outputs.bynk-version }}
+    steps:
+      # If the checks job failed outright (say, setup-bynk could not install
+      # the version), there is no outcome: that is a fail, at the version asked for.
+      - name: Decide
+        id: decide
+        env:
+          CHECKS: ${{ needs.checks.result }}
+          OUTCOME: ${{ needs.checks.outputs.result }}
+          RESOLVED: ${{ needs.checks.outputs.bynk-version }}
+          REQUESTED: ${{ inputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          result="${OUTCOME:-fail}"
+          [ "$CHECKS" = success ] || result=fail
+          version="${RESOLVED:-${REQUESTED#v}}"
+          {
+            echo "result=${result}"
+            echo "bynk-version=${version}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Bynk canary result: ${result}"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Bynk | ${version} |"
+            echo "| Commit | ${COMMIT_SHA} |"
+            echo "| Run | ${RUN_URL} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fetch the canary scripts
+        if: needs.checks.result != 'cancelled'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: bynk-lang/.github
+          ref: ${{ inputs.canary-ref }}
+          path: .bynk-canary
+          sparse-checkout: canary/scripts
+          persist-credentials: false
+
+      - name: Issue
+        if: inputs.open-issue && needs.checks.result != 'cancelled'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BYNK_VERSION: ${{ steps.decide.outputs.bynk-version }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULT: ${{ steps.decide.outputs.result }}
+        run: .bynk-canary/canary/scripts/issue.sh "$RESULT"
+
+      - name: Report
+        if: needs.checks.result != 'cancelled'
+        continue-on-error: true
+        env:
+          REPORT_URL: ${{ secrets.report-url }}
+          REPORT_KEY: ${{ secrets.report-key }}
+          REPO: ${{ github.repository }}
+          KIND: ${{ inputs.kind }}
+          BYNK_VERSION: ${{ steps.decide.outputs.bynk-version }}
+          RESULT: ${{ steps.decide.outputs.result }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: .bynk-canary/canary/scripts/report.sh
+
+      - name: Fail the run
+        if: steps.decide.outputs.result == 'fail' && inputs.fail-run
+        env:
+          BYNK_VERSION: ${{ steps.decide.outputs.bynk-version }}
+        run: |
+          echo "::error::The canary fails with Bynk ${BYNK_VERSION}"
+          exit 1

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registry:
+    name: Registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate against the schema
+        run: pipx run check-jsonschema==0.38.2 --schemafile canary/repos.schema.json canary/repos.json
+      # JSON Schema's uniqueItems compares whole entries; two entries for one
+      # repo with different kinds would pass it.
+      - name: Each repo once
+        run: |
+          dupes="$(jq -r '[.repos[].repo | ascii_downcase] | group_by(.) | map(select(length > 1) | .[0]) | .[]' canary/repos.json)"
+          if [ -n "$dupes" ]; then
+            while read -r repo; do echo "::error file=canary/repos.json::${repo} is listed more than once"; done <<<"$dupes"
+            exit 1
+          fi
+          echo "$(jq '.repos | length' canary/repos.json) entries, all unique"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" actionlint
+      - name: actionlint (workflows and starter templates)
+        run: |
+          "$RUNNER_TEMP/actionlint" -color .github/workflows/*.yml workflow-templates/*.yml
+      - name: shellcheck
+        run: shellcheck canary/scripts/*.sh canary/test/run.sh canary/test/bin/*
+
+  scripts:
+    name: Script tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Unit tests
+        run: canary/test/run.sh

@@ -1,0 +1,10 @@
+{
+  "$schema": "./repos.schema.json",
+  "repos": [
+    {
+      "repo": "bynk-lang/bynk-deploy",
+      "kind": "action",
+      "description": "Deploy action, dry-run fixtures"
+    }
+  ]
+}

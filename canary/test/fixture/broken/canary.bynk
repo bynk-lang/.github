@@ -1,0 +1,7 @@
+context canary
+
+---
+Deliberately broken: returns an Int where a String is declared. The self-test
+points `source` here and asserts that the canary reports `fail`.
+---
+fn greet(name: String) -> String { 42 }

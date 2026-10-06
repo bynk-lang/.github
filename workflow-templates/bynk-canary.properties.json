@@ -1,0 +1,7 @@
+{
+  "name": "Bynk canary",
+  "description": "Re-run a Bynk project's checks against each new Bynk release, triggered by the org's canary dispatcher, and keep a canary issue open while they fail.",
+  "iconName": "bynk",
+  "categories": ["Continuous integration", "Bynk"],
+  "filePatterns": ["bynk\\.toml$"]
+}
