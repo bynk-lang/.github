@@ -31,7 +31,7 @@ are always present, and there are no others.
 | `repo` | string | The repository that ran the canary, `owner/name` (`github.repository`). |
 | `kind` | `"example"` \| `"action"` | The repository's kind in [`repos.json`](repos.json), as the caller passed it in the `kind` input (default `example`). |
 | `bynk_version` | string | The exact Bynk version tested, **without** a leading `v`: `0.303.4`, not `v0.303.4`. Resolved by `setup-bynk` even when `latest` was asked for. If the toolchain could not be installed at all, this is the version that was asked for. |
-| `result` | `"pass"` \| `"fail"` | `pass` only if every selected check (bynk-ci, and the bynk-deploy dry run when enabled) succeeded. |
+| `result` | `"pass"` \| `"fail"` | `pass` only if every selected check (bynk-ci, and the bynk-deploy dry run when enabled) succeeded, and the caller's `upstream-result` was `success` or `skipped`. |
 | `commit` | string | The 40-character SHA of the commit tested (`github.sha`; the default branch's head for a dispatch). |
 | `run_url` | string | The workflow run, `https://github.com/<repo>/actions/runs/<id>`. Unique per run; use it as the idempotency key. |
 | `finished_at` | string | When the result was decided, RFC 3339 in UTC with seconds precision: `2026-10-06T06:40:00Z`. |

@@ -46,6 +46,13 @@ on:
         description: The repository's kind in canary/repos.json, `example` or `action`. Sent in the report.
         type: string
         default: example
+      upstream-result:
+        description: >-
+          The result of checks the caller ran in its own jobs, at the same
+          version (pass `needs.<job>.result`). Anything but `success` or
+          `skipped` makes the canary fail, so one `canary` issue covers both.
+        type: string
+        default: success
       fail-run:
         description: >-
           Fail the workflow run when the checks fail. The self-test sets false
@@ -172,11 +179,13 @@ jobs:
           OUTCOME: ${{ needs.checks.outputs.result }}
           RESOLVED: ${{ needs.checks.outputs.bynk-version }}
           REQUESTED: ${{ inputs.version }}
+          UPSTREAM: ${{ inputs.upstream-result }}
           COMMIT_SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           result="${OUTCOME:-fail}"
           [ "$CHECKS" = success ] || result=fail
+          case "$UPSTREAM" in success|skipped) ;; *) result=fail ;; esac
           version="${RESOLVED:-${REQUESTED#v}}"
           {
             echo "result=${result}"
@@ -188,6 +197,7 @@ jobs:
             echo "| | |"
             echo "| --- | --- |"
             echo "| Bynk | ${version} |"
+            echo "| Caller's own checks | ${UPSTREAM} |"
             echo "| Commit | ${COMMIT_SHA} |"
             echo "| Run | ${RUN_URL} |"
           } >> "$GITHUB_STEP_SUMMARY"

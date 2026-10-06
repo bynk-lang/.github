@@ -53,6 +53,7 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `deploy-dry-run` | `false` | Also run `bynk-deploy@v2` with `dry-run: "true"`. This is offline, so it needs no Cloudflare credentials. |
 | `open-issue` | `true` | Manage the `canary` issue. |
 | `kind` | `example` | The repository's kind in `repos.json`, sent in the report. |
+| `upstream-result` | `success` | The result of checks the caller ran in its own jobs at the same version, as `needs.<job>.result`. Anything but `success` or `skipped` fails the canary. See [the caller's own checks](#the-callers-own-checks). |
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 
@@ -68,6 +69,33 @@ directory from **Bynk 0.307.0** ([accuser/bynk#1753](https://github.com/accuser/
 and checks the same files `bynkc check` does. Before 0.307.0 it took files only,
 so a run pinned to an older version with a directory `source` fails its format
 check with "Is a directory". Set `format: false` for those.
+
+### The caller's own checks
+
+Some repositories test more than bynk-ci and a dry run can. bynk-deploy, for
+example, asserts on the deploy plan's JSON. To run those tests at the canary's
+version and have them count towards the same `canary` issue:
+1. make the test workflow callable (`on: workflow_call`, with a `version` input);
+2. call it from the canary workflow at the dispatched version;
+3. pass its result in as `upstream-result`.
+
+```yaml
+jobs:
+  tests:
+    uses: ./.github/workflows/test.yml
+    with:
+      version: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
+  canary:
+    needs: tests
+    if: ${{ !cancelled() }}
+    uses: bynk-lang/.github/.github/workflows/canary.yml@v1
+    with:
+      version: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
+      upstream-result: ${{ needs.tests.result }}
+```
+
+The dispatcher always sends an exact version, so both jobs test the same
+release. A manual run with `latest` resolves the version twice, once in each job.
 
 ## Enrolling a repository
 
@@ -174,4 +202,5 @@ silently, and a failed report is only a warning.
   `canary.yml` from the same commit against [`test/fixture/`](test/fixture),
   which has one context and one test. It runs at a pinned version (with the
   deploy dry run) and at `latest`, and once with `source: broken`, which has a
-  deliberate type error and must report `fail`.
+  deliberate type error and must report `fail`. A fourth run passes
+  `upstream-result: failure` on the passing fixture, and must also report `fail`.
