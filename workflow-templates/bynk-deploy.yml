@@ -1,9 +1,13 @@
 # Deploy a Bynk project to Cloudflare Workers.
-# Each Bynk context is compiled to a Worker and deployed with wrangler.
+# `bynk deploy` provisions each context's resources (KV namespaces, queues,
+# secrets) and deploys every context in Service Binding order.
 #
 # Set these as repository or organisation secrets first:
 #   CLOUDFLARE_API_TOKEN   — a Cloudflare API token with Workers deploy scope
 #   CLOUDFLARE_ACCOUNT_ID  — your Cloudflare account ID
+#
+# If the project uses KV, run `bynk deploy` locally once and commit
+# bynk.deploy.lock: CI will not create a KV namespace it cannot record.
 name: Deploy Bynk to Cloudflare
 
 on:
@@ -20,9 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bynk-lang/bynk-deploy@v1
+      - uses: bynk-lang/bynk-deploy@v2
         with:
           version: latest   # pin an exact version for reproducible deploys
-          source: src
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Actor `auth` secrets, as dotenv lines from repository secrets:
+          # secrets: |
+          #   AUTH_JWT_SECRET=${{ secrets.AUTH_JWT_SECRET }}
