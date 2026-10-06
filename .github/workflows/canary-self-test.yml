@@ -15,7 +15,7 @@ permissions:
 # Keep in step with the `version:` of the pinned and broken jobs (the env
 # context is not available to a reusable workflow's `with:`).
 env:
-  PINNED: 0.303.4
+  PINNED: 0.307.0
 
 jobs:
   pinned:
@@ -25,11 +25,9 @@ jobs:
       contents: read
       issues: write   # canary.yml's result job asks for it; open-issue is off
     with:
-      version: 0.303.4
+      version: 0.307.0
       working-directory: canary/test/fixture
       source: .
-      # bynk-ci@v1 runs `bynkc fmt --check <source>`, and fmt takes files only.
-      format: false
       deploy-dry-run: true
       open-issue: false
       canary-ref: ${{ github.sha }}
@@ -44,7 +42,6 @@ jobs:
       version: latest
       working-directory: canary/test/fixture
       source: .
-      format: false
       open-issue: false
       canary-ref: ${{ github.sha }}
 
@@ -55,10 +52,9 @@ jobs:
       contents: read
       issues: write
     with:
-      version: 0.303.4
+      version: 0.307.0
       working-directory: canary/test/fixture
       source: broken
-      format: false
       open-issue: false
       fail-run: false
       canary-ref: ${{ github.sha }}

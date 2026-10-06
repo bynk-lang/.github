@@ -30,9 +30,8 @@ on:
         default: true
       format:
         description: >-
-          Run bynk-ci's format check. bynk-ci@v1 passes `source` to
-          `bynkc fmt --check`, which takes files only, so a directory source
-          fails this step whatever the release.
+          Run bynk-ci's format check. On a directory `source`, this needs
+          Bynk 0.307.0 or later: before that, `bynkc fmt` took files only.
         type: boolean
         default: true
       deploy-dry-run:

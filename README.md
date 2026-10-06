@@ -11,7 +11,7 @@ workflows** offered to every repository under Actions → New workflow.
 
 | Template | Uses | What it does |
 | -------- | ---- | ------------ |
-| **Bynk CI** ([`bynk-ci.yml`](workflow-templates/bynk-ci.yml)) | `bynk-lang/bynk-ci@v1` | Type check and tests on push/PR, with inline diagnostics. The format check is off until `bynkc fmt` accepts a directory ([accuser/bynk#1753](https://github.com/accuser/bynk/issues/1753)). |
+| **Bynk CI** ([`bynk-ci.yml`](workflow-templates/bynk-ci.yml)) | `bynk-lang/bynk-ci@v1` | Format check, type check, and tests on push/PR, with inline diagnostics. The format check on a directory `source` needs Bynk 0.307.0 or later. |
 | **Deploy Bynk to Cloudflare** ([`bynk-deploy.yml`](workflow-templates/bynk-deploy.yml)) | `bynk-lang/bynk-deploy@v2` | Compile and deploy the generated Worker(s) with wrangler. |
 | **Bynk canary** ([`bynk-canary.yml`](workflow-templates/bynk-canary.yml)) | `bynk-lang/.github/.github/workflows/canary.yml@v1` | Re-run the repository's checks against each new Bynk release, on dispatch from the org canary. |
 
