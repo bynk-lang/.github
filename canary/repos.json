@@ -15,6 +15,11 @@
       "repo": "bynk-lang/bynk-ci",
       "kind": "action",
       "description": "CI action: each check against pass/fail fixtures"
+    },
+    {
+      "repo": "bynk-lang/architecture-that-compiles",
+      "kind": "book",
+      "description": "Book: chapter listings compile with the diagnostics they quote"
     }
   ]
 }
