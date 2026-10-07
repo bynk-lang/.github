@@ -20,6 +20,11 @@
       "repo": "bynk-lang/architecture-that-compiles",
       "kind": "book",
       "description": "Book: chapter listings compile with the diagnostics they quote"
+    },
+    {
+      "repo": "bynk-lang/compat-board",
+      "kind": "example",
+      "description": "Compat board: collects the canary's results"
     }
   ]
 }
