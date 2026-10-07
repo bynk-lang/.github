@@ -39,7 +39,7 @@ sig="$( { printf '%s.' "$ts"; cat "$tmp/body.json"; } \
   | openssl dgst -sha256 -hmac "$REPORT_KEY" -binary | od -An -v -tx1 | tr -d ' \n')"
 
 if "$CURL" --silent --show-error --fail-with-body --max-time 30 \
-     --retry 2 --retry-all-errors \
+     --retry 2 \
      -X POST "$REPORT_URL" \
      -H "Content-Type: application/json" \
      -H "X-Timestamp: ${ts}" \
