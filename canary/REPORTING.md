@@ -105,9 +105,12 @@ verifier, and the unit tests run it against `report.sh`'s real output.
 
 ## Response
 
-Any `2xx` is success; the response body is ignored. Anything else (including a
-timeout after 30 seconds) is retried twice with the same timestamp and body,
-then logged as a **warning** on the run. A failed report never fails the canary.
+Any `2xx` is success; the response body is ignored. A transient failure (a
+timeout after 30 seconds, a connection error, `408`, `429` or a `5xx`) is
+retried twice with the same timestamp and body. Anything else, such as a `401`
+for a bad signature or a `400` for a body outside the contract, is not retried.
+Either way, a report that still fails is logged as a **warning** on the run. A
+failed report never fails the canary.
 
 Because of those retries the receiver can see one run more than once. Treat
 `run_url` as the key and keep the first.
