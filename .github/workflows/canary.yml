@@ -43,7 +43,7 @@ on:
         type: boolean
         default: true
       kind:
-        description: The repository's kind in canary/repos.json, `example` or `action`. Sent in the report.
+        description: The repository's kind in canary/repos.json, `example`, `action` or `book`. Sent in the report.
         type: string
         default: example
       upstream-result:
@@ -51,8 +51,9 @@ on:
           The result of checks the caller ran in its own jobs, at the same
           version (pass `needs.<job>.result`). Anything but `success` or
           `skipped` makes the canary fail, so one `canary` issue covers both.
+          Empty (the default) when the caller runs no checks of its own.
         type: string
-        default: success
+        default: ""
       fail-run:
         description: >-
           Fail the workflow run when the checks fail. The self-test sets false
@@ -141,13 +142,14 @@ jobs:
         env:
           CI_OUTCOME: ${{ steps.ci.outcome }}
           DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          UPSTREAM: ${{ inputs.upstream-result }}
         run: |
           result=pass
           for o in "$CI_OUTCOME" "$DEPLOY_OUTCOME"; do
             case "$o" in success|skipped) ;; *) result=fail ;; esac
           done
-          if [ "$CI_OUTCOME" = skipped ] && [ "$DEPLOY_OUTCOME" = skipped ]; then
-            echo "::warning::Neither ci nor deploy-dry-run is set; nothing was checked"
+          if [ "$CI_OUTCOME" = skipped ] && [ "$DEPLOY_OUTCOME" = skipped ] && [ -z "$UPSTREAM" ]; then
+            echo "::warning::Neither ci, deploy-dry-run nor upstream-result is set; nothing was checked"
           fi
           echo "result=${result}" >> "$GITHUB_OUTPUT"
           {
@@ -185,7 +187,7 @@ jobs:
         run: |
           result="${OUTCOME:-fail}"
           [ "$CHECKS" = success ] || result=fail
-          case "$UPSTREAM" in success|skipped) ;; *) result=fail ;; esac
+          case "$UPSTREAM" in ""|success|skipped) ;; *) result=fail ;; esac
           version="${RESOLVED:-${REQUESTED#v}}"
           {
             echo "result=${result}"
@@ -197,7 +199,7 @@ jobs:
             echo "| | |"
             echo "| --- | --- |"
             echo "| Bynk | ${version} |"
-            echo "| Caller's own checks | ${UPSTREAM} |"
+            echo "| Caller's own checks | ${UPSTREAM:-none} |"
             echo "| Commit | ${COMMIT_SHA} |"
             echo "| Run | ${RUN_URL} |"
           } >> "$GITHUB_STEP_SUMMARY"
