@@ -29,7 +29,7 @@ are always present, and there are no others.
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `repo` | string | The repository that ran the canary, `owner/name` (`github.repository`). |
-| `kind` | `"example"` \| `"action"` | The repository's kind in [`repos.json`](repos.json), as the caller passed it in the `kind` input (default `example`). |
+| `kind` | `"example"` \| `"action"` \| `"book"` | The repository's kind in [`repos.json`](repos.json), as the caller passed it in the `kind` input (default `example`). |
 | `bynk_version` | string | The exact Bynk version tested, **without** a leading `v`: `0.303.4`, not `v0.303.4`. Resolved by `setup-bynk` even when `latest` was asked for. If the toolchain could not be installed at all, this is the version that was asked for. |
 | `result` | `"pass"` \| `"fail"` | `pass` only if every selected check (bynk-ci, and the bynk-deploy dry run when enabled) succeeded, and the caller's `upstream-result` was `success` or `skipped`. |
 | `commit` | string | The 40-character SHA of the commit tested (`github.sha`; the default branch's head for a dispatch). |

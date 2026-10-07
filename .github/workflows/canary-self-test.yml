@@ -12,8 +12,9 @@ on:
 permissions:
   contents: read
 
-# Keep in step with the `version:` of the pinned, broken and upstream jobs
-# (the env context is not available to a reusable workflow's `with:`).
+# Keep in step with the `version:` of the pinned, broken, upstream and
+# upstream-only jobs (the env context is not available to a reusable
+# workflow's `with:`).
 env:
   PINNED: 0.307.0
 
@@ -76,9 +77,25 @@ jobs:
       fail-run: false
       canary-ref: ${{ github.sha }}
 
+  # A caller whose only checks are its own (a book's listings): no bynk-ci, no
+  # dry run, just its result. The canary must report `pass`.
+  upstream-only:
+    name: Caller's checks only
+    uses: ./.github/workflows/canary.yml
+    permissions:
+      contents: read
+      issues: write
+    with:
+      version: 0.307.0
+      ci: false
+      upstream-result: success
+      kind: book
+      open-issue: false
+      canary-ref: ${{ github.sha }}
+
   assert:
     name: Assert
-    needs: [pinned, latest, broken, upstream]
+    needs: [pinned, latest, broken, upstream, upstream-only]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -93,6 +110,7 @@ jobs:
           BROKEN_VERSION: ${{ needs.broken.outputs.bynk-version }}
           BROKEN_JOB: ${{ needs.broken.result }}
           UPSTREAM_RESULT: ${{ needs.upstream.outputs.result }}
+          UPSTREAM_ONLY_RESULT: ${{ needs.upstream-only.outputs.result }}
         run: |
           set -u
           failed=0
@@ -110,4 +128,5 @@ jobs:
           # fail-run: false, so the deliberate break does not fail its job.
           expect "broken job" "$BROKEN_JOB" success
           expect "upstream result" "$UPSTREAM_RESULT" fail
+          expect "caller's checks only result" "$UPSTREAM_ONLY_RESULT" pass
           exit "$failed"

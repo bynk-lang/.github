@@ -27,7 +27,7 @@ flowchart LR
 
 | Part | What it does |
 | --- | --- |
-| [`repos.json`](repos.json) | The registry: every enrolled repository and its `kind` (`example` or `action`). Validated against [`repos.schema.json`](repos.schema.json) on every pull request. |
+| [`repos.json`](repos.json) | The registry: every enrolled repository and its `kind` (`example`, `action` or `book`). Validated against [`repos.schema.json`](repos.schema.json) on every pull request. |
 | [`dispatch-canary.yml`](../.github/workflows/dispatch-canary.yml) | The one central trigger. It resolves `latest` to an exact version **once**, so every repository tests the same release, then sends each one a `bynk-canary` `repository_dispatch`. A failed dispatch doesn't stop the rest; every result goes in the job summary, and the run fails at the end if any dispatch failed. |
 | [`bynk-canary.yml`](../workflow-templates/bynk-canary.yml) (starter workflow) | What each enrolled repository adds. It listens for `bynk-canary` (and `workflow_dispatch`), and calls `canary.yml`. It has no `schedule` of its own. |
 | [`canary.yml`](../.github/workflows/canary.yml) | The reusable workflow. It resolves the version with `setup-bynk`, runs `bynk-ci` and/or a `bynk-deploy` dry run at that exact version, then a result job opens, updates or closes the `canary` issue ([`scripts/issue.sh`](scripts/issue.sh)) and sends the optional report ([`scripts/report.sh`](scripts/report.sh)). Its outputs are `result` (`pass` or `fail`) and `bynk-version`. |
@@ -52,8 +52,8 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `format` | `true` | Run `bynk-ci`'s format check. On a directory `source`, it needs Bynk 0.307.0 or later; see [below](#bynk-ci-and-directories). |
 | `deploy-dry-run` | `false` | Also run `bynk-deploy@v2` with `dry-run: "true"`. This is offline, so it needs no Cloudflare credentials. |
 | `open-issue` | `true` | Manage the `canary` issue. |
-| `kind` | `example` | The repository's kind in `repos.json`, sent in the report. |
-| `upstream-result` | `success` | The result of checks the caller ran in its own jobs at the same version, as `needs.<job>.result`. Anything but `success` or `skipped` fails the canary. See [the caller's own checks](#the-callers-own-checks). |
+| `kind` | `example` | The repository's kind in `repos.json` (`example`, `action` or `book`), sent in the report. |
+| `upstream-result` | empty | The result of checks the caller ran in its own jobs at the same version, as `needs.<job>.result`. Anything but `success` or `skipped` fails the canary; empty means the caller runs none. See [the caller's own checks](#the-callers-own-checks). |
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 
@@ -93,6 +93,10 @@ jobs:
       version: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
       upstream-result: ${{ needs.tests.result }}
 ```
+
+A repository whose only checks are its own (a book's listings, say) sets
+`ci: false` and passes `upstream-result` alone: `canary.yml` still resolves the
+version, and keeps the issue and the report.
 
 The dispatcher always sends an exact version, so both jobs test the same
 release. A manual run with `latest` resolves the version twice, once in each job.
@@ -204,3 +208,5 @@ silently, and a failed report is only a warning.
   deploy dry run) and at `latest`, and once with `source: broken`, which has a
   deliberate type error and must report `fail`. A fourth run passes
   `upstream-result: failure` on the passing fixture, and must also report `fail`.
+  A fifth turns `ci` off and passes only `upstream-result: success` (a book's
+  setup), and must report `pass`.

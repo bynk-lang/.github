@@ -26,8 +26,8 @@
           "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+$"
         },
         "kind": {
-          "description": "`example`: a Bynk example project (read by the examples index and the compat board). `action`: one of the org's GitHub Actions.",
-          "enum": ["example", "action"]
+          "description": "`example`: a Bynk example project (read by the examples index and the compat board). `action`: one of the org's GitHub Actions. `book`: a book whose listings are compiled against Bynk.",
+          "enum": ["example", "action", "book"]
         },
         "description": {
           "description": "One line saying what the canary runs there.",
