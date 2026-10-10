@@ -59,8 +59,8 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 
-The secrets `report-url` and `report-key` are optional and being retired: they're
-used only when the run can't mint an OIDC token.
+The secrets `report-url` and `report-key` are ignored, and declared only so
+callers that still pass them keep working.
 
 The caller must grant `contents: read`, `issues: write` and `id-token: write`,
 even with `open-issue: false` and `report: false`, because the result job asks
@@ -199,12 +199,7 @@ The result job POSTs the result to the compat board
 run mints for the board's URL. No secret is involved, so it works in private
 repositories too, and the board accepts a report only for the repository whose
 run sent it. The payload and both authentication schemes are specified in
-[`REPORTING.md`](REPORTING.md).
-
-The older shared-key path (`report-url` plus `report-key`, HMAC-signed for
-Bynk's `Signature` actor) is still used when the run can't mint a token, until
-every caller grants `id-token: write`; then it will be removed. A failed report
-is only ever a warning.
+[`REPORTING.md`](REPORTING.md). A failed report is only ever a warning.
 
 ## Tests
 

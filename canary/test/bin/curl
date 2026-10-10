@@ -38,7 +38,7 @@ printf '%s\n' "$url" >"$dir/url"
 printf '%s\n' "${headers[@]}" >"$dir/headers"
 [ -n "$body" ] && cp "$body" "$dir/body"
 if [ "${FAKE_CURL_FAIL:-0}" = 1 ]; then
-  echo '{"error":"bad signature"}' >"${out:-/dev/null}"
+  echo '{"error":"unauthorized"}' >"${out:-/dev/null}"
   echo "curl: (22) The requested URL returned error: 401" >&2
   exit 22
 fi
