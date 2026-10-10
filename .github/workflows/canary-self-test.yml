@@ -24,13 +24,15 @@ jobs:
     uses: ./.github/workflows/canary.yml
     permissions:
       contents: read
-      issues: write   # canary.yml's result job asks for it; open-issue is off
+      issues: write
+      id-token: write   # canary.yml's result job asks for these; open-issue and report are off
     with:
       version: 0.307.0
       working-directory: canary/test/fixture
       source: .
       deploy-dry-run: true
       open-issue: false
+      report: false   # fixture results must not reach the live board
       canary-ref: ${{ github.sha }}
 
   latest:
@@ -39,11 +41,13 @@ jobs:
     permissions:
       contents: read
       issues: write
+      id-token: write
     with:
       version: latest
       working-directory: canary/test/fixture
       source: .
       open-issue: false
+      report: false   # fixture results must not reach the live board
       canary-ref: ${{ github.sha }}
 
   broken:
@@ -52,11 +56,13 @@ jobs:
     permissions:
       contents: read
       issues: write
+      id-token: write
     with:
       version: 0.307.0
       working-directory: canary/test/fixture
       source: broken
       open-issue: false
+      report: false   # fixture results must not reach the live board
       fail-run: false
       canary-ref: ${{ github.sha }}
 
@@ -68,12 +74,14 @@ jobs:
     permissions:
       contents: read
       issues: write
+      id-token: write
     with:
       version: 0.307.0
       working-directory: canary/test/fixture
       source: .
       upstream-result: failure
       open-issue: false
+      report: false   # fixture results must not reach the live board
       fail-run: false
       canary-ref: ${{ github.sha }}
 
@@ -85,12 +93,14 @@ jobs:
     permissions:
       contents: read
       issues: write
+      id-token: write
     with:
       version: 0.307.0
       ci: false
       upstream-result: success
       kind: book
       open-issue: false
+      report: false   # fixture results must not reach the live board
       canary-ref: ${{ github.sha }}
 
   assert:

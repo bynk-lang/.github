@@ -1,21 +1,42 @@
 #!/usr/bin/env bash
-# A fake `curl` for the report test: records the headers and the exact body
-# bytes in $FAKE_CURL_DIR, and fails (exit 22, like --fail) if FAKE_CURL_FAIL=1.
+# A fake `curl` for the report test.
+#
+# A request whose URL has `audience=` is the OIDC token request: it records the
+# URL in $FAKE_CURL_DIR/token_url and its headers in token_headers, and answers
+# {"value": $FAKE_TOKEN} (default "fake.oidc.token"), or fails if
+# FAKE_TOKEN_FAIL=1.
+#
+# Any other request is the report: it records the method, URL, headers and the
+# exact body bytes, and fails (exit 22, like --fail) if FAKE_CURL_FAIL=1.
 set -euo pipefail
 dir="${FAKE_CURL_DIR:?}"
-: >"$dir/headers"
+headers=() url="" method="" body="" out=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    -H) printf '%s\n' "$2" >>"$dir/headers"; shift ;;
-    --data-binary) cp "${2#@}" "$dir/body"; shift ;;
-    -X) printf '%s\n' "$2" >"$dir/method"; shift ;;
+    -H) headers+=("$2"); shift ;;
+    --data-binary) body="${2#@}"; shift ;;
+    -X) method="$2"; shift ;;
     -o) out="$2"; shift ;;
     --max-time|--retry) shift ;;
     -*) ;;
-    *) printf '%s\n' "$1" >"$dir/url" ;;
+    *) url="$1" ;;
   esac
   shift
 done
+if [[ "$url" == *"audience="* ]]; then
+  printf '%s\n' "$url" >"$dir/token_url"
+  printf '%s\n' "${headers[@]}" >"$dir/token_headers"
+  if [ "${FAKE_TOKEN_FAIL:-0}" = 1 ]; then
+    echo "curl: (22) The requested URL returned error: 403" >&2
+    exit 22
+  fi
+  printf '{"count":1,"value":"%s"}' "${FAKE_TOKEN:-fake.oidc.token}" >"${out:-/dev/stdout}"
+  exit 0
+fi
+printf '%s\n' "$method" >"$dir/method"
+printf '%s\n' "$url" >"$dir/url"
+printf '%s\n' "${headers[@]}" >"$dir/headers"
+[ -n "$body" ] && cp "$body" "$dir/body"
 if [ "${FAKE_CURL_FAIL:-0}" = 1 ]; then
   echo '{"error":"bad signature"}' >"${out:-/dev/null}"
   echo "curl: (22) The requested URL returned error: 401" >&2
