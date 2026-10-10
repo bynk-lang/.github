@@ -25,6 +25,11 @@
       "repo": "bynk-lang/compat-board",
       "kind": "example",
       "description": "Compat board: collects the canary's results"
+    },
+    {
+      "repo": "bynk-lang/examples",
+      "kind": "example",
+      "description": "Examples index: the org's Bynk projects and their compatibility"
     }
   ]
 }
