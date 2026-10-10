@@ -54,6 +54,18 @@ on:
           Empty (the default) when the caller runs no checks of its own.
         type: string
         default: ""
+      report:
+        description: >-
+          Report the result to the compat board. The run authenticates with
+          its GitHub OIDC token (the caller must grant `id-token: write`),
+          or, as a fallback being retired, with `report-url` and `report-key`.
+          The self-test turns it off.
+        type: boolean
+        default: true
+      board-url:
+        description: The compat board an OIDC report goes to (`<board-url>/v2/runs`), and the token's audience.
+        type: string
+        default: https://compat-board.accuser.workers.dev
       fail-run:
         description: >-
           Fail the workflow run when the checks fail. The self-test sets false
@@ -68,10 +80,10 @@ on:
         default: v1
     secrets:
       report-url:
-        description: The compat board's POST /runs endpoint. Reporting is skipped unless this and report-key are set.
+        description: Being retired. The compat board's HMAC endpoint, used only when the run can't mint an OIDC token.
         required: false
       report-key:
-        description: Shared HMAC-SHA256 secret for the compat board's Signature actor.
+        description: Being retired. The shared HMAC-SHA256 key for that endpoint.
         required: false
     outputs:
       result:
@@ -168,6 +180,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      id-token: write   # the report is authenticated by this run's OIDC token
     outputs:
       result: ${{ steps.decide.outputs.result }}
       bynk-version: ${{ steps.decide.outputs.bynk-version }}
@@ -226,9 +239,10 @@ jobs:
         run: .bynk-canary/canary/scripts/issue.sh "$RESULT"
 
       - name: Report
-        if: needs.checks.result != 'cancelled'
+        if: needs.checks.result != 'cancelled' && inputs.report
         continue-on-error: true
         env:
+          BOARD_URL: ${{ inputs.board-url }}
           REPORT_URL: ${{ secrets.report-url }}
           REPORT_KEY: ${{ secrets.report-key }}
           REPO: ${{ github.repository }}

@@ -22,7 +22,7 @@ flowchart LR
   E1 -- "uses @v1" --> C
   E2 -- "uses @v1" --> C
   C --> I["canary issue<br/>open / comment / close"]
-  C -. "if report-url and report-key" .-> B["compat board<br/>POST /runs"]
+  C -. "OIDC token (id-token: write)" .-> B["compat board<br/>POST /v2/runs"]
 ```
 
 | Part | What it does |
@@ -54,13 +54,17 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `open-issue` | `true` | Manage the `canary` issue. |
 | `kind` | `example` | The repository's kind in `repos.json` (`example`, `action` or `book`), sent in the report. |
 | `upstream-result` | empty | The result of checks the caller ran in its own jobs at the same version, as `needs.<job>.result`. Anything but `success` or `skipped` fails the canary; empty means the caller runs none. See [the caller's own checks](#the-callers-own-checks). |
+| `report` | `true` | Report the result to the compat board, authenticated by the run's GitHub OIDC token. The self-test turns it off. |
+| `board-url` | `https://compat-board.accuser.workers.dev` | Where an OIDC report goes (`<board-url>/v2/runs`), and the token's audience. |
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 
-The secrets `report-url` and `report-key` are both optional.
+The secrets `report-url` and `report-key` are optional and being retired: they're
+used only when the run can't mint an OIDC token.
 
-The caller must grant `contents: read` and `issues: write`, even with
-`open-issue: false`, because the result job asks for them.
+The caller must grant `contents: read`, `issues: write` and `id-token: write`,
+even with `open-issue: false` and `report: false`, because the result job asks
+for them.
 
 ### bynk-ci and directories
 
@@ -190,11 +194,17 @@ gh workflow run bynk-canary.yml -R bynk-lang/bynk-deploy -f version=latest
 
 ## Reporting
 
-When a caller passes both `report-url` and `report-key`, the result job POSTs a
-signed JSON result to the compat board. The payload and the HMAC-SHA256
-signature scheme (which matches Bynk's `Signature` actor) are specified in
-[`REPORTING.md`](REPORTING.md). Without both secrets, reporting is skipped
-silently, and a failed report is only a warning.
+The result job POSTs the result to the compat board
+(`<board-url>/v2/runs`), authenticated by the **GitHub Actions OIDC token** the
+run mints for the board's URL. No secret is involved, so it works in private
+repositories too, and the board accepts a report only for the repository whose
+run sent it. The payload and both authentication schemes are specified in
+[`REPORTING.md`](REPORTING.md).
+
+The older shared-key path (`report-url` plus `report-key`, HMAC-signed for
+Bynk's `Signature` actor) is still used when the run can't mint a token, until
+every caller grants `id-token: write`; then it will be removed. A failed report
+is only ever a warning.
 
 ## Tests
 

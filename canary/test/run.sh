@@ -23,6 +23,7 @@ t() {
   export FAKE_GH_LOG="$work/gh.log" GITHUB_OUTPUT="$work/output" GITHUB_STEP_SUMMARY="$work/summary"
   : >"$FAKE_GH_LOG"
   unset FAKE_ISSUES FAKE_LABEL FAKE_LATEST FAKE_RELEASES FAKE_FAIL_REPOS FILTER
+  unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN BOARD_URL FAKE_TOKEN FAKE_TOKEN_FAIL FAKE_CURL_FAIL
 }
 
 called()     { grep -qF -- "$1" "$FAKE_GH_LOG" || nope "expected a call matching '$1'"; }
@@ -131,6 +132,47 @@ FAKE_CURL_DIR="$work"
 FAKE_CURL_FAIL=1 REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
 grep -q '^::warning::canary report' "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
 grep -q "bad signature" "$work/stdout" || nope "the warning omits the receiver's answer"
+ok
+
+t "with an OIDC token available, the report goes to /v2/runs with it, not the key"
+FAKE_CURL_DIR="$work"
+ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/request?api-version=2.0" ACTIONS_ID_TOKEN_REQUEST_TOKEN="req-token" \
+  BOARD_URL="https://board.test/" REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
+grep -qxF "https://token.test/request?api-version=2.0&audience=https%3A%2F%2Fboard.test" "$work/token_url" || nope "token URL: $(cat "$work/token_url" 2>/dev/null)"
+grep -qxF "Authorization: bearer req-token" "$work/token_headers" || nope "token request headers: $(cat "$work/token_headers" 2>/dev/null)"
+[ "$(cat "$work/url")" = "https://board.test/v2/runs" ] || nope "posted to $(cat "$work/url")"
+grep -qxF "Authorization: Bearer fake.oidc.token" "$work/headers" || nope "report headers: $(cat "$work/headers")"
+grep -q "^X-Signature" "$work/headers" && nope "signed with the key as well"
+jq -e '.repo == "bynk-lang/example" and .result == "pass"' "$work/body" >/dev/null || nope "body: $(cat "$work/body")"
+grep -qxF "::add-mask::fake.oidc.token" "$work/stdout" || nope "the token was not masked"
+grep -q "(oidc)" "$work/stdout" || nope "the log doesn't say which path: $(cat "$work/stdout")"
+ok
+
+t "without a board URL, OIDC reports to the compat board, with its URL as the audience"
+FAKE_CURL_DIR="$work"
+ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/request?x=1" ACTIONS_ID_TOKEN_REQUEST_TOKEN="req-token" report; status $? 0
+grep -qxF "https://token.test/request?x=1&audience=https%3A%2F%2Fcompat-board.accuser.workers.dev" "$work/token_url" || nope "token URL: $(cat "$work/token_url" 2>/dev/null)"
+[ "$(cat "$work/url")" = "https://compat-board.accuser.workers.dev/v2/runs" ] || nope "posted to $(cat "$work/url")"
+ok
+
+t "a failed token request is a warning, and nothing is posted"
+FAKE_CURL_DIR="$work"
+FAKE_TOKEN_FAIL=1 ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/r?x=1" ACTIONS_ID_TOKEN_REQUEST_TOKEN="t" report; status $? 0
+grep -q "^::warning::canary report to the compat board failed: could not mint an OIDC token" "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
+[ ! -e "$work/url" ] || nope "posted anyway"
+ok
+
+t "a board refusing an OIDC report is a warning, not a failure"
+FAKE_CURL_DIR="$work"
+FAKE_CURL_FAIL=1 ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/r?x=1" ACTIONS_ID_TOKEN_REQUEST_TOKEN="t" report; status $? 0
+grep -q "^::warning::canary report" "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
+ok
+
+t "the HMAC path says so in the log"
+FAKE_CURL_DIR="$work"
+REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
+grep -q "(hmac)" "$work/stdout" || nope "the log doesn't say which path: $(cat "$work/stdout")"
+[ ! -e "$work/token_url" ] || nope "asked for a token without id-token"
 ok
 
 # --- dispatch.sh: resolve ---------------------------------------------------

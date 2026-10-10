@@ -38,6 +38,40 @@ are always present, and there are no others.
 
 A cancelled run sends no report.
 
+### Authentication: GitHub Actions OIDC
+
+`POST <board-url>/v2/runs`, with the run's GitHub Actions OIDC token:
+
+```http
+POST https://compat-board.accuser.workers.dev/v2/runs
+Content-Type: application/json
+Authorization: Bearer <GitHub Actions OIDC token>
+```
+
+- **Minting:** the run mints the token with the board's URL as the
+  **audience**. That needs `permissions: id-token: write`, and `report.sh`
+  requests it from `ACTIONS_ID_TOKEN_REQUEST_URL`, as `@actions/core`'s
+  `getIDToken` does.
+- **Verifying:** the board, a Bynk `Oidc` actor, checks the token against
+  GitHub's public keys (`https://token.actions.githubusercontent.com/.well-known/jwks`,
+  RS256), and checks that `iss` is `https://token.actions.githubusercontent.com`,
+  `aud` is its URL, and `exp`/`nbf` are current. No secret is involved.
+- **The `sub` claim** must be a **branch run of a bynk-lang repository**:
+  `repo:bynk-lang/NAME:ref:refs/heads/BRANCH`, or, for repositories created
+  after 15 July 2026, `repo:bynk-lang@295025398/NAME@ID:ref:refs/heads/BRANCH`.
+  Any other token, such as another org's or a pull request's (`…:pull_request`),
+  gets `401`.
+- **The body's `repo`** must be the run's own repository (the `owner/name` in
+  `sub`, without the `@ID`s), or the board answers **`403`**. A run can only
+  report for itself.
+
+The body and the responses are the same as below.
+
+### Authentication: shared-key signature (being retired)
+
+`POST /runs` with an HMAC signature. It's used only when the run can't mint an
+OIDC token, and goes once every caller grants `id-token: write`.
+
 ### Signature
 
 The headers are what a Bynk `Signature` actor with a timestamp verifies:
