@@ -26,6 +26,7 @@ on:
 permissions:
   contents: read
   issues: write
+  id-token: write   # the result is reported with this run's GitHub OIDC token
 
 jobs:
   canary:
@@ -36,7 +37,3 @@ jobs:
       kind: example          # `action` for one of the org's actions
       source: src            # `.` to include a tests/ directory
       # deploy-dry-run: true # also plan a deploy with bynk-deploy@v2, offline
-    secrets:
-      # Optional: report results to the compat board. Skipped unless both are set.
-      report-url: ${{ secrets.BYNK_CANARY_REPORT_URL }}
-      report-key: ${{ secrets.BYNK_CANARY_REPORT_KEY }}
