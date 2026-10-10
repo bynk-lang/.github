@@ -96,28 +96,22 @@ ok
 
 export KIND=example RESULT=pass FAKE_CURL_DIR
 report() { "$scripts/report.sh" >"$work/stdout" 2>&1; }
+token_env() {
+  export ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/request?api-version=2.0" ACTIONS_ID_TOKEN_REQUEST_TOKEN="req-token"
+}
 
-t "no report-url or report-key skips silently"
+t "without an OIDC token nothing is reported, even with the old report secrets"
 FAKE_CURL_DIR="$work"
-REPORT_URL="" REPORT_KEY="" report; status $? 0
-[ ! -e "$work/body" ] || nope "curl was called"
+REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
+[ ! -e "$work/url" ] || nope "posted without a token"
+[ ! -e "$work/token_url" ] || nope "asked for a token without the token environment"
 [ ! -s "$work/stdout" ] || nope "printed: $(cat "$work/stdout")"
-REPORT_URL="https://board.test/runs" REPORT_KEY="" report; status $? 0
-[ ! -e "$work/body" ] || nope "curl was called without a key"
 ok
 
-t "a report is signed the way a Bynk Signature actor verifies it"
+t "the body is the contract's seven fields, compact, with nothing after it"
 FAKE_CURL_DIR="$work"
-REPORT_URL="https://board.test/runs" REPORT_KEY='s3cr€t key' report; status $? 0
-[ "$(cat "$work/url")" = "https://board.test/runs" ] || nope "posted to $(cat "$work/url")"
-ts="$(sed -n 's/^X-Timestamp: //p' "$work/headers")"
-sig="$(sed -n 's/^X-Signature: //p' "$work/headers")"
-[[ "$ts" =~ ^[0-9]+$ ]] || nope "X-Timestamp '$ts' is not Unix seconds"
-[[ "$sig" =~ ^[0-9a-f]{64}$ ]] || nope "X-Signature '$sig' is not 64 hex digits"
-node "$here/verify-signature.mjs" 's3cr€t key' "$work/body" "$ts" "$sig" || nope "the receiver rejects the signature"
-node "$here/verify-signature.mjs" 'wrong key' "$work/body" "$ts" "$sig" && nope "a wrong key verifies"
-node "$here/verify-signature.mjs" 's3cr€t key' "$work/body" "$((ts - 301))" "$sig" && nope "a stale timestamp verifies"
-jq -e --arg ts "$ts" '
+token_env; report; status $? 0
+jq -e '
   .repo == "bynk-lang/example" and .kind == "example" and .bynk_version == "0.303.4"
   and .result == "pass" and .commit == "abc123"
   and .run_url == "https://github.com/bynk-lang/example/actions/runs/1"
@@ -127,22 +121,14 @@ jq -e --arg ts "$ts" '
 grep -qx "Content-Type: application/json" "$work/headers" || nope "no JSON content type"
 ok
 
-t "a failed report is a warning, not a failure"
-FAKE_CURL_DIR="$work"
-FAKE_CURL_FAIL=1 REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
-grep -q '^::warning::canary report' "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
-grep -q "bad signature" "$work/stdout" || nope "the warning omits the receiver's answer"
-ok
-
-t "with an OIDC token available, the report goes to /v2/runs with it, not the key"
+t "the report goes to /v2/runs with the run's OIDC token"
 FAKE_CURL_DIR="$work"
 ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/request?api-version=2.0" ACTIONS_ID_TOKEN_REQUEST_TOKEN="req-token" \
-  BOARD_URL="https://board.test/" REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
+  BOARD_URL="https://board.test/" report; status $? 0
 grep -qxF "https://token.test/request?api-version=2.0&audience=https%3A%2F%2Fboard.test" "$work/token_url" || nope "token URL: $(cat "$work/token_url" 2>/dev/null)"
 grep -qxF "Authorization: bearer req-token" "$work/token_headers" || nope "token request headers: $(cat "$work/token_headers" 2>/dev/null)"
 [ "$(cat "$work/url")" = "https://board.test/v2/runs" ] || nope "posted to $(cat "$work/url")"
 grep -qxF "Authorization: Bearer fake.oidc.token" "$work/headers" || nope "report headers: $(cat "$work/headers")"
-grep -q "^X-Signature" "$work/headers" && nope "signed with the key as well"
 jq -e '.repo == "bynk-lang/example" and .result == "pass"' "$work/body" >/dev/null || nope "body: $(cat "$work/body")"
 grep -qxF "::add-mask::fake.oidc.token" "$work/stdout" || nope "the token was not masked"
 grep -q "(oidc)" "$work/stdout" || nope "the log doesn't say which path: $(cat "$work/stdout")"
@@ -166,13 +152,6 @@ t "a board refusing an OIDC report is a warning, not a failure"
 FAKE_CURL_DIR="$work"
 FAKE_CURL_FAIL=1 ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/r?x=1" ACTIONS_ID_TOKEN_REQUEST_TOKEN="t" report; status $? 0
 grep -q "^::warning::canary report" "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
-ok
-
-t "the HMAC path says so in the log"
-FAKE_CURL_DIR="$work"
-REPORT_URL="https://board.test/runs" REPORT_KEY=k report; status $? 0
-grep -q "(hmac)" "$work/stdout" || nope "the log doesn't say which path: $(cat "$work/stdout")"
-[ ! -e "$work/token_url" ] || nope "asked for a token without id-token"
 ok
 
 # --- dispatch.sh: resolve ---------------------------------------------------

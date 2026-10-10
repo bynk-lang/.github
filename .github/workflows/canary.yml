@@ -5,7 +5,7 @@
 # It runs the repository's checks against one Bynk release, then, in a result
 # job that always runs: keeps one `canary` issue per break (opened on failure,
 # commented on while it lasts, closed on the next pass), and posts the result
-# to the compat board when report-url and report-key are both set.
+# to the compat board, authenticated by the run's GitHub OIDC token.
 # See canary/README.md.
 name: Bynk canary
 
@@ -56,10 +56,9 @@ on:
         default: ""
       report:
         description: >-
-          Report the result to the compat board. The run authenticates with
-          its GitHub OIDC token (the caller must grant `id-token: write`),
-          or, as a fallback being retired, with `report-url` and `report-key`.
-          The self-test turns it off.
+          Report the result to the compat board, authenticated by the run's
+          GitHub OIDC token (the caller must grant `id-token: write`). The
+          self-test turns it off.
         type: boolean
         default: true
       board-url:
@@ -80,10 +79,10 @@ on:
         default: v1
     secrets:
       report-url:
-        description: Being retired. The compat board's HMAC endpoint, used only when the run can't mint an OIDC token.
+        description: Ignored. Reports are authenticated by the run's OIDC token; declared so callers that still pass it keep working.
         required: false
       report-key:
-        description: Being retired. The shared HMAC-SHA256 key for that endpoint.
+        description: Ignored, as report-url.
         required: false
     outputs:
       result:
@@ -243,8 +242,6 @@ jobs:
         continue-on-error: true
         env:
           BOARD_URL: ${{ inputs.board-url }}
-          REPORT_URL: ${{ secrets.report-url }}
-          REPORT_KEY: ${{ secrets.report-key }}
           REPO: ${{ github.repository }}
           KIND: ${{ inputs.kind }}
           BYNK_VERSION: ${{ steps.decide.outputs.bynk-version }}
