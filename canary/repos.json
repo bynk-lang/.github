@@ -30,6 +30,11 @@
       "repo": "bynk-lang/examples",
       "kind": "example",
       "description": "Examples index: the org's Bynk projects and their compatibility"
+    },
+    {
+      "repo": "bynk-lang/status",
+      "kind": "example",
+      "description": "Status page: the org's live Bynk services, checked every five minutes"
     }
   ]
 }
