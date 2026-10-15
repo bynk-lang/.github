@@ -32,6 +32,11 @@
       "description": "Example template: the starter every new example begins from"
     },
     {
+      "repo": "bynk-lang/shop",
+      "kind": "example",
+      "description": "Shop: four contexts over Service Bindings and events, with end-to-end scenarios"
+    },
+    {
       "repo": "bynk-lang/compat-board",
       "kind": "example",
       "description": "Compat board: collects the canary's results"
