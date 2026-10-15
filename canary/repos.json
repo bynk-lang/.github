@@ -27,6 +27,11 @@
       "description": "Book: chapter listings compile with the diagnostics they quote"
     },
     {
+      "repo": "bynk-lang/example-template",
+      "kind": "example",
+      "description": "Example template: the starter every new example begins from"
+    },
+    {
       "repo": "bynk-lang/compat-board",
       "kind": "example",
       "description": "Compat board: collects the canary's results"
