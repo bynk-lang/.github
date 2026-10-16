@@ -17,7 +17,7 @@ on:
         description: Only these repositories (owner/name, comma- or space-separated); empty for all
         type: string
         default: ""
-  # Sent by accuser/bynk's release workflow: client_payload.version
+  # Sent by bynk-lang/bynk's release workflow: client_payload.version
   repository_dispatch:
     types: [bynk-release]
   # Weekly. Subject to GitHub's 60-day inactivity rule; see canary/README.md.

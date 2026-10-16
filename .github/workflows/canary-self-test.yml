@@ -128,7 +128,7 @@ jobs:
             if [ "$2" = "$3" ]; then echo "ok: $1 = $2"
             else echo "::error::$1 is '$2', expected '$3'"; failed=1; fi
           }
-          latest="$(gh api repos/accuser/bynk/releases/latest --jq .tag_name)"
+          latest="$(gh api repos/bynk-lang/bynk/releases/latest --jq .tag_name)"
           expect "pinned result" "$PINNED_RESULT" pass
           expect "pinned bynk-version" "$PINNED_VERSION" "$PINNED"
           expect "latest result" "$LATEST_RESULT" pass

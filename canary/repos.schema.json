@@ -30,7 +30,7 @@
           "enum": ["example", "action", "book"]
         },
         "description": {
-          "description": "One line describing the repository. Required: the examples index shows it, and Bynk decodes a plain optional string only as a required field (accuser/bynk#1887).",
+          "description": "One line describing the repository. Required: the examples index shows it, and Bynk decodes a plain optional string only as a required field (bynk-lang/bynk#1887).",
           "type": "string",
           "minLength": 1
         }

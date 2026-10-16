@@ -12,7 +12,7 @@
 #             dispatch failed.
 #
 # Environment:
-#   resolve: REQUESTED, BYNK_REPOSITORY (default accuser/bynk)
+#   resolve: REQUESTED, BYNK_REPOSITORY (default bynk-lang/bynk)
 #   send:    VERSION, REASON, REGISTRY (default canary/repos.json),
 #            FILTER (optional; repos separated by commas and/or whitespace)
 #   both:    GH (the `gh` command, default gh); tests point it at a fake
@@ -25,7 +25,7 @@ die() { echo "::error::canary dispatch: $*" >&2; exit 1; }
 summary() { if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then cat >>"$GITHUB_STEP_SUMMARY"; else cat >/dev/null; fi; }
 
 cmd_resolve() {
-  local repo="${BYNK_REPOSITORY:-accuser/bynk}" want="${REQUESTED:-latest}" tag
+  local repo="${BYNK_REPOSITORY:-bynk-lang/bynk}" want="${REQUESTED:-latest}" tag
   [ -n "$want" ] || want=latest
   if [ "$want" = latest ]; then
     tag="$("$GH" api "repos/${repo}/releases/latest" --jq .tag_name)" \
