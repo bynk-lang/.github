@@ -7,7 +7,7 @@ releases.
 
 - **Website:** [bynk-lang.org](https://bynk-lang.org)
 - **The Bynk Book:** [bynk-lang.org/book](https://bynk-lang.org/book/)
-- **Compiler and toolchain:** [`accuser/bynk`](https://github.com/accuser/bynk)
+- **Compiler and toolchain:** [`bynk-lang/bynk`](https://github.com/bynk-lang/bynk)
 
 ## Use Bynk in GitHub Actions
 

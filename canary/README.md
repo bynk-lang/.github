@@ -8,7 +8,7 @@ one, it opens an issue there, and closes the issue again once the canary passes.
 
 ```mermaid
 flowchart LR
-  bynk["accuser/bynk<br/>release workflow"] -- "repository_dispatch<br/>bynk-release {version}" --> D
+  bynk["bynk-lang/bynk<br/>release workflow"] -- "repository_dispatch<br/>bynk-release {version}" --> D
   cron["weekly schedule"] --> D
   hand["workflow_dispatch<br/>{version, repos}"] --> D
   subgraph org [bynk-lang/.github]
@@ -69,7 +69,7 @@ for them.
 ### bynk-ci and directories
 
 `bynk-ci@v1` passes `source` to `bynkc fmt --check`. `bynkc fmt` accepts a
-directory from **Bynk 0.307.0** ([accuser/bynk#1753](https://github.com/accuser/bynk/issues/1753)),
+directory from **Bynk 0.307.0** ([bynk-lang/bynk#1753](https://github.com/bynk-lang/bynk/issues/1753)),
 and checks the same files `bynkc check` does. Before 0.307.0 it took files only,
 so a run pinned to an older version with a directory `source` fails its format
 check with "Is a directory". Set `format: false` for those.
@@ -159,11 +159,11 @@ The dispatcher's weekly `schedule` **is** subject to the rule, because this
 repository changes rarely too. After 60 quiet days GitHub will disable it, and
 someone has to re-enable it in the Actions tab. That is acceptable, because the
 schedule is only a backstop. The durable trigger is the `bynk-release` dispatch
-that `accuser/bynk`'s release workflow will send on every release. That is a
+that `bynk-lang/bynk`'s release workflow will send on every release. That is a
 separate change, and until it lands the weekly schedule and manual runs are the
 only triggers. There are no keep-alive commits.
 
-`accuser/bynk` will send:
+`bynk-lang/bynk` will send:
 
 ```sh
 gh api -X POST repos/bynk-lang/.github/dispatches \
