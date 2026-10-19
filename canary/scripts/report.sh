@@ -10,14 +10,14 @@
 # never a canary failure: this script always exits 0 once it has its inputs.
 #
 # Environment:
-#   BOARD_URL       the board (default https://compat-board.accuser.workers.dev)
+#   BOARD_URL       the board (default https://compat-board.bynk-lang.workers.dev)
 #   ACTIONS_ID_TOKEN_REQUEST_URL, ACTIONS_ID_TOKEN_REQUEST_TOKEN   set by GitHub Actions
 #   REPO, KIND, BYNK_VERSION, RESULT, COMMIT_SHA, RUN_URL   the payload fields
 #   CURL                                         the `curl` command (default: curl)
 set -euo pipefail
 
 CURL="${CURL:-curl}"
-BOARD_URL="${BOARD_URL:-https://compat-board.accuser.workers.dev}"
+BOARD_URL="${BOARD_URL:-https://compat-board.bynk-lang.workers.dev}"
 BOARD_URL="${BOARD_URL%/}"
 
 if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then

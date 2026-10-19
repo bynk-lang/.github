@@ -137,8 +137,8 @@ ok
 t "without a board URL, OIDC reports to the compat board, with its URL as the audience"
 FAKE_CURL_DIR="$work"
 ACTIONS_ID_TOKEN_REQUEST_URL="https://token.test/request?x=1" ACTIONS_ID_TOKEN_REQUEST_TOKEN="req-token" report; status $? 0
-grep -qxF "https://token.test/request?x=1&audience=https%3A%2F%2Fcompat-board.accuser.workers.dev" "$work/token_url" || nope "token URL: $(cat "$work/token_url" 2>/dev/null)"
-[ "$(cat "$work/url")" = "https://compat-board.accuser.workers.dev/v2/runs" ] || nope "posted to $(cat "$work/url")"
+grep -qxF "https://token.test/request?x=1&audience=https%3A%2F%2Fcompat-board.bynk-lang.workers.dev" "$work/token_url" || nope "token URL: $(cat "$work/token_url" 2>/dev/null)"
+[ "$(cat "$work/url")" = "https://compat-board.bynk-lang.workers.dev/v2/runs" ] || nope "posted to $(cat "$work/url")"
 ok
 
 t "a failed token request is a warning, and nothing is posted"

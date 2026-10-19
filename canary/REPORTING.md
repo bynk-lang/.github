@@ -13,7 +13,7 @@ silently.
 One request per canary run, sent from the result job after the issue step.
 
 ```http
-POST https://compat-board.accuser.workers.dev/v2/runs
+POST https://compat-board.bynk-lang.workers.dev/v2/runs
 Content-Type: application/json
 Authorization: Bearer <the run's GitHub Actions OIDC token>
 
@@ -42,7 +42,7 @@ A cancelled run sends no report.
 `POST <board-url>/v2/runs`, with the run's GitHub Actions OIDC token:
 
 ```http
-POST https://compat-board.accuser.workers.dev/v2/runs
+POST https://compat-board.bynk-lang.workers.dev/v2/runs
 Content-Type: application/json
 Authorization: Bearer <GitHub Actions OIDC token>
 ```
