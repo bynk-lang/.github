@@ -55,7 +55,7 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `kind` | `example` | The repository's kind in `repos.json` (`example`, `action` or `book`), sent in the report. |
 | `upstream-result` | empty | The result of checks the caller ran in its own jobs at the same version, as `needs.<job>.result`. Anything but `success` or `skipped` fails the canary; empty means the caller runs none. See [the caller's own checks](#the-callers-own-checks). |
 | `report` | `true` | Report the result to the compat board, authenticated by the run's GitHub OIDC token. The self-test turns it off. |
-| `board-url` | `https://compat-board.accuser.workers.dev` | Where an OIDC report goes (`<board-url>/v2/runs`), and the token's audience. |
+| `board-url` | `https://compat-board.bynk-lang.workers.dev` | Where an OIDC report goes (`<board-url>/v2/runs`), and the token's audience. |
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 

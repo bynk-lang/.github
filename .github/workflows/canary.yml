@@ -64,7 +64,7 @@ on:
       board-url:
         description: The compat board an OIDC report goes to (`<board-url>/v2/runs`), and the token's audience.
         type: string
-        default: https://compat-board.accuser.workers.dev
+        default: https://compat-board.bynk-lang.workers.dev
       fail-run:
         description: >-
           Fail the workflow run when the checks fail. The self-test sets false
