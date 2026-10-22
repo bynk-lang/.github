@@ -26,8 +26,8 @@
           "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+$"
         },
         "kind": {
-          "description": "`example`: a Bynk example project (read by the examples index and the compat board). `action`: one of the org's GitHub Actions. `book`: a book whose listings are compiled against Bynk.",
-          "enum": ["example", "action", "book"]
+          "description": "`example`: a Bynk example project (read by the examples index and the compat board). `action`: one of the org's GitHub Actions. `app`: an application, such as the playground, whose own checks run against Bynk releases. `book`: a book whose listings are compiled against Bynk.",
+          "enum": ["example", "action", "app", "book"]
         },
         "description": {
           "description": "One line describing the repository. Required: the examples index shows it, and Bynk decodes a plain optional string only as a required field (bynk-lang/bynk#1887).",

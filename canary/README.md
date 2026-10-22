@@ -27,7 +27,7 @@ flowchart LR
 
 | Part | What it does |
 | --- | --- |
-| [`repos.json`](repos.json) | The registry: every enrolled repository and its `kind` (`example`, `action` or `book`). Validated against [`repos.schema.json`](repos.schema.json) on every pull request. |
+| [`repos.json`](repos.json) | The registry: every enrolled repository and its `kind` (`example`, `action`, `app` or `book`). Validated against [`repos.schema.json`](repos.schema.json) on every pull request. |
 | [`dispatch-canary.yml`](../.github/workflows/dispatch-canary.yml) | The one central trigger. It resolves `latest` to an exact version **once**, so every repository tests the same release, then sends each one a `bynk-canary` `repository_dispatch`. A failed dispatch doesn't stop the rest; every result goes in the job summary, and the run fails at the end if any dispatch failed. |
 | [`bynk-canary.yml`](../workflow-templates/bynk-canary.yml) (starter workflow) | What each enrolled repository adds. It listens for `bynk-canary` (and `workflow_dispatch`), and calls `canary.yml`. It has no `schedule` of its own. |
 | [`canary.yml`](../.github/workflows/canary.yml) | The reusable workflow. It resolves the version with `setup-bynk`, runs `bynk-ci` and/or a `bynk-deploy` dry run at that exact version, then a result job opens, updates or closes the `canary` issue ([`scripts/issue.sh`](scripts/issue.sh)) and sends the optional report ([`scripts/report.sh`](scripts/report.sh)). Its outputs are `result` (`pass` or `fail`) and `bynk-version`. |
@@ -52,7 +52,7 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `format` | `true` | Run `bynk-ci`'s format check. On a directory `source`, it needs Bynk 0.307.0 or later; see [below](#bynk-ci-and-directories). |
 | `deploy-dry-run` | `false` | Also run `bynk-deploy@v2` with `dry-run: "true"`. This is offline, so it needs no Cloudflare credentials. |
 | `open-issue` | `true` | Manage the `canary` issue. |
-| `kind` | `example` | The repository's kind in `repos.json` (`example`, `action` or `book`), sent in the report. |
+| `kind` | `example` | The repository's kind in `repos.json` (`example`, `action`, `app` or `book`), sent in the report. |
 | `upstream-result` | empty | The result of checks the caller ran in its own jobs at the same version, as `needs.<job>.result`. Anything but `success` or `skipped` fails the canary; empty means the caller runs none. See [the caller's own checks](#the-callers-own-checks). |
 | `report` | `true` | Report the result to the compat board, authenticated by the run's GitHub OIDC token. The self-test turns it off. |
 | `board-url` | `https://compat-board.bynk-lang.workers.dev` | Where an OIDC report goes (`<board-url>/v2/runs`), and the token's audience. |

@@ -43,7 +43,7 @@ on:
         type: boolean
         default: true
       kind:
-        description: The repository's kind in canary/repos.json, `example`, `action` or `book`. Sent in the report.
+        description: The repository's kind in canary/repos.json, `example`, `action`, `app` or `book`. Sent in the report.
         type: string
         default: example
       upstream-result:

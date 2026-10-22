@@ -8,7 +8,7 @@
 #
 # To enrol, as well as adding this file to the default branch:
 #   1. add the repository to canary/repos.json in bynk-lang/.github, with its
-#      `kind` (`example` or `action`, matching `kind:` below);
+#      `kind` (`example`, `action`, `app` or `book`, matching `kind:` below);
 #   2. install the org's canary GitHub App on the repository.
 # See https://github.com/bynk-lang/.github/blob/main/canary/README.md
 name: Bynk canary
@@ -34,6 +34,6 @@ jobs:
     uses: bynk-lang/.github/.github/workflows/canary.yml@v1
     with:
       version: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
-      kind: example          # `action` for one of the org's actions
+      kind: example          # `action` for one of the org's actions, `app` for an application
       source: src            # `.` to include a tests/ directory
       # deploy-dry-run: true # also plan a deploy with bynk-deploy@v2, offline
