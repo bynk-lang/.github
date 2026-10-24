@@ -55,6 +55,11 @@
       "repo": "bynk-lang/status",
       "kind": "example",
       "description": "Status page: the org's live Bynk services, checked every five minutes"
+    },
+    {
+      "repo": "bynk-lang/playground",
+      "kind": "app",
+      "description": "Playground: unit tests, every gallery example through the release's wasm compiler, and the share service"
     }
   ]
 }
