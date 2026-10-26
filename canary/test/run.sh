@@ -22,7 +22,7 @@ t() {
   work="$(mktemp -d)"
   export FAKE_GH_LOG="$work/gh.log" GITHUB_OUTPUT="$work/output" GITHUB_STEP_SUMMARY="$work/summary"
   : >"$FAKE_GH_LOG"
-  unset FAKE_ISSUES FAKE_LABEL FAKE_LATEST FAKE_RELEASES FAKE_FAIL_REPOS FAKE_PULLS FAKE_AUTOMERGE_FAIL FILTER
+  unset FAKE_ISSUES FAKE_LABEL FAKE_LATEST FAKE_RELEASES FAKE_FAIL_REPOS FAKE_PULLS FAKE_AUTOMERGE_FAIL FAKE_COMPARE FILTER
   unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN BOARD_URL FAKE_TOKEN FAKE_TOKEN_FAIL FAKE_CURL_FAIL
 }
 
@@ -366,6 +366,42 @@ t "auto-merge that the repository refuses is a warning, not a failure"
 checkout v0.300.0
 apply v0.305.0 && FAKE_AUTOMERGE_FAIL=1 AUTO_MERGE=true propose 0.300.0 0.305.0; status $? 0
 grep -q '^::warning::Could not turn on auto-merge' "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
+ok
+
+t "a bump branch someone else pushed to is left alone"
+checkout v0.300.0
+apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+tip="$(git -C "$work/origin.git" rev-parse canary/bynk-v0.305.0)"
+: >"$FAKE_GH_LOG"; : >"$GITHUB_OUTPUT"
+git -C "$work/repo" switch -q main && git -C "$work/repo" branch -q -D canary/bynk-v0.305.0
+apply v0.305.0 && FAKE_COMPARE='{"commits":[{"author":{"login":"bump[bot]"}},{"author":{"login":"alice"}}]}' \
+  propose 0.300.0 0.305.0; status $? 0
+[ "$(git -C "$work/origin.git" rev-parse canary/bynk-v0.305.0)" = "$tip" ] || nope "the branch was pushed over"
+called "-X GET repos/o/r/compare/main...canary/bynk-v0.305.0"
+grep -q '^::notice::canary/bynk-v0.305.0 has commits by alice' "$work/stdout" || nope "no notice: $(cat "$work/stdout")"
+not_called "-X POST repos/o/r/pulls"
+not_called "repos/o/r/pulls -f state=open"
+ok
+
+t "a bump branch with only the bot's commits is updated"
+checkout v0.300.0
+apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+: >"$FAKE_GH_LOG"
+git -C "$work/repo" switch -q main && git -C "$work/repo" branch -q -D canary/bynk-v0.305.0
+git -C "$work/repo" checkout -q -- . && git -C "$work/repo" commit -q --allow-empty -m "main moved on"
+apply v0.305.0 && FAKE_COMPARE='{"commits":[{"author":{"login":"bump[bot]"}}]}' \
+  FAKE_PULLS='[{"number":7,"head":{"ref":"canary/bynk-v0.305.0"}}]' propose 0.300.0 0.305.0; status $? 0
+[ "$(git -C "$work/origin.git" rev-parse canary/bynk-v0.305.0^)" = "$(git -C "$work/repo" rev-parse main)" ] || nope "the branch was not rebuilt on main"
+out "number=7"
+ok
+
+t "a commit with no GitHub user counts by its author name"
+checkout v0.300.0
+apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+git -C "$work/repo" switch -q main && git -C "$work/repo" branch -q -D canary/bynk-v0.305.0
+apply v0.305.0 && FAKE_COMPARE='{"commits":[{"author":null,"commit":{"author":{"name":"Someone"}}}]}' \
+  propose 0.300.0 0.305.0; status $? 0
+grep -q 'has commits by Someone' "$work/stdout" || nope "no notice: $(cat "$work/stdout")"
 ok
 
 t "propose with nothing applied fails"

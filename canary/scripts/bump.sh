@@ -8,7 +8,8 @@
 #   bump.sh propose       commit the edits to canary/bynk-<to>, push it, open
 #                         a pull request onto BASE (or leave the open one,
 #                         now updated), close any bump pull request for an
-#                         older release, and optionally enable auto-merge
+#                         older release, and optionally enable auto-merge.
+#                         A branch someone else has pushed to is left alone.
 #
 # The pin is the BYNK_VERSION file at the root: one exact version, such as
 # v0.404.0, that every workflow reads (setup-bynk, bynk-ci and bynk-deploy
@@ -90,6 +91,19 @@ cmd_propose() {
   files="$(git status --porcelain --untracked-files=no | wc -l | tr -d ' ')"
   [ "$files" -gt 0 ] || die "nothing to commit; run apply first"
   mapfile -t marked < <(git diff --name-only -- . ":(exclude)$PIN")
+
+  # Someone may have pushed to an open bump: the fix a release needs, say, or
+  # a line the marker can't reach. Pushing again would throw that away, so a
+  # branch with commits by anyone but the bot is left as it is.
+  if [ -n "$(git ls-remote --heads origin "$branch")" ]; then
+    local others
+    others="$(api -X GET "repos/${REPO}/compare/${BASE}...${branch}" \
+      --jq "[.commits[] | (.author.login // .commit.author.name) | select(. != \"${BOT_NAME}\")] | unique | join(\", \")")"
+    if [ -n "$others" ]; then
+      echo "::notice::${branch} has commits by ${others}, so it is left as it is; merge or close its pull request"
+      return 0
+    fi
+  fi
 
   git switch -q -c "$branch"
   git add -- "$PIN" ${marked[@]+"${marked[@]}"}
