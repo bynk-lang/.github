@@ -1,5 +1,6 @@
-# Bynk canary: re-run this repository's checks against a new Bynk release, and
-# keep a `canary` issue open while they fail.
+# Bynk canary: re-run this repository's checks against a new Bynk release,
+# keep a `canary` issue open while they fail, and propose moving the pin in
+# BYNK_VERSION once a newer release passes.
 #
 # There is deliberately no `schedule` here. GitHub disables scheduled workflows
 # in a public repository after 60 days without activity; instead, the central
@@ -9,7 +10,10 @@
 # To enrol, as well as adding this file to the default branch:
 #   1. add the repository to canary/repos.json in bynk-lang/.github, with its
 #      `kind` (`example`, `action`, `app` or `book`, matching `kind:` below);
-#   2. install the org's canary GitHub App on the repository.
+#   2. install the org's canary GitHub App on the repository;
+#   3. keep the Bynk version in a BYNK_VERSION file at the root (such as
+#      v0.404.0) and have your workflows read it (`version-file: BYNK_VERSION`
+#      on setup-bynk, bynk-ci and bynk-deploy), so the bump moves one file.
 # See https://github.com/bynk-lang/.github/blob/main/canary/README.md
 name: Bynk canary
 
@@ -37,3 +41,6 @@ jobs:
       kind: example          # `action` for one of the org's actions, `app` for an application
       source: src            # `.` to include a tests/ directory
       # deploy-dry-run: true # also plan a deploy with bynk-deploy@v2, offline
+      bump: true             # propose moving BYNK_VERSION to a newer release that passes
+      # bump-auto-merge: true  # and merge that once its checks pass
+    secrets: inherit         # the bump App's BUMP_APP_ID and BUMP_APP_KEY

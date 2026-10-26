@@ -7,6 +7,8 @@
 #   FAKE_LATEST        tag returned by releases/latest (default v0.303.4)
 #   FAKE_RELEASES      space-separated tags that exist (default v0.303.4)
 #   FAKE_FAIL_REPOS    space-separated repos whose dispatch fails with 404
+#   FAKE_PULLS         JSON returned by GET repos/*/pulls (default [])
+#   FAKE_AUTOMERGE_FAIL  1 if enabling auto-merge fails
 #
 # Like `gh api`, it applies --jq to the response.
 set -euo pipefail
@@ -44,6 +46,11 @@ case "$method $path" in
   "POST repos/"*/issues) respond '{"number":101}' ;;
   "POST repos/"*/comments) respond '{"id":1}' ;;
   "PATCH repos/"*/issues/*) respond '{"state":"closed"}' ;;
+  "GET repos/"*/pulls) respond "${FAKE_PULLS:-[]}" ;;
+  "POST repos/"*/pulls) respond '{"number":12,"html_url":"https://github.com/o/r/pull/12","node_id":"PR_node12"}' ;;
+  "PATCH repos/"*/pulls/*) respond '{"state":"closed"}' ;;
+  "DELETE repos/"*/git/refs/heads/*) ;;
+  "GET graphql") [ "${FAKE_AUTOMERGE_FAIL:-0}" = 1 ] && http_error "Pull request Auto merge is not allowed for this repository" 422; respond '{}' ;;
   "GET repos/"*/releases/latest) respond "{\"tag_name\":\"${FAKE_LATEST:-v0.303.4}\"}" ;;
   "GET repos/"*/releases/tags/*)
     tag="${path##*/}"
