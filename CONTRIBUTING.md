@@ -34,6 +34,22 @@ a security issue, follow [SECURITY.md](SECURITY.md), not the issue tracker.
 
 Commit messages should say what changed and why, in the imperative mood.
 
+## Changes to a GitHub Action
+
+`setup-bynk`, `bynk-ci`, `bynk-deploy` and `bynk-dev` share a layout: `action.yml`
+at the root, a `Test` workflow (`.github/workflows/test.yml`) that runs the
+action against the fixtures under `test/`, and a `BYNK_VERSION` file naming the
+Bynk release those tests run with.
+
+- Push and pull request runs use `BYNK_VERSION`, so a red build means your change
+  broke something, not that a new Bynk release came out. Do not edit that file by
+  hand; the org canary proposes moving it once a newer release passes.
+- To try another release, run the `Test` workflow manually (`workflow_dispatch`)
+  and give it a `version`.
+- Add or adjust a fixture under `test/` for the behaviour you change.
+- Consumers pin a major tag (for example `@v1`), so renaming or removing an input
+  or output is a breaking change. Say so in the pull request.
+
 ## Licence
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
