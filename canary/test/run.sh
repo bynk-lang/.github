@@ -22,7 +22,7 @@ t() {
   work="$(mktemp -d)"
   export FAKE_GH_LOG="$work/gh.log" GITHUB_OUTPUT="$work/output" GITHUB_STEP_SUMMARY="$work/summary"
   : >"$FAKE_GH_LOG"
-  unset FAKE_ISSUES FAKE_LABEL FAKE_LATEST FAKE_RELEASES FAKE_FAIL_REPOS FILTER
+  unset FAKE_ISSUES FAKE_LABEL FAKE_LATEST FAKE_RELEASES FAKE_FAIL_REPOS FAKE_PULLS FAKE_AUTOMERGE_FAIL FILTER
   unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN BOARD_URL FAKE_TOKEN FAKE_TOKEN_FAIL FAKE_CURL_FAIL
 }
 
@@ -236,6 +236,141 @@ FILTER="bynk-lang/a bynk-lang/zzz" REGISTRY="$work/repos.json" send; status $? 1
 called "repos/bynk-lang/a/dispatches"
 not_called "bynk-lang/zzz"
 grep -q "bynk-lang/zzz is not in" "$work/stdout" || nope "unclear error"
+ok
+
+# --- bump.sh ----------------------------------------------------------------
+
+# A checkout of a repository whose origin is a local bare repository, so a
+# push can be inspected. <pin> is BYNK_VERSION's content; "" for no file.
+checkout() {
+  git init -q --bare "$work/origin.git"
+  git init -q -b main "$work/repo"
+  (
+    cd "$work/repo" || exit
+    git config user.name t && git config user.email t@t
+    if [ -n "$1" ]; then printf '%s\n' "$1" >BYNK_VERSION; fi
+    mkdir -p .github/workflows docs
+    printf 'version: 0.300.0   # bynk-pin\nfloor: 0.290.0\n' >docs/usage.md
+    printf 'bynk-version: "v0.300.0", // bynk-pin\n' >metadata.typ
+    printf 'name: CI\n' >.github/workflows/ci.yml
+    git add -A && git commit -qm init
+    git remote add origin "$work/origin.git" && git push -q origin main
+  )
+}
+apply()   { (cd "$work/repo" && "$scripts/bump.sh" apply "$1") >"$work/stdout" 2>&1; }
+propose() {
+  (cd "$work/repo" && REPO=o/r BASE=main FROM="$1" TO="$2" RUN_URL=https://run/1 \
+    BOT_NAME="bump[bot]" BOT_EMAIL="1+bump[bot]@users.noreply.github.com" \
+    "$scripts/bump.sh" propose) >"$work/stdout" 2>&1
+}
+pinned() { tr -d '[:space:]' <"$work/repo/BYNK_VERSION"; }
+
+t "a newer final release moves BYNK_VERSION, keeping its v"
+checkout v0.300.0
+apply v0.305.0; status $? 0
+[ "$(pinned)" = v0.305.0 ] || nope "BYNK_VERSION is $(pinned)"
+out "changed=true"; out "from=0.300.0"; out "to=0.305.0"
+ok
+
+t "a bare BYNK_VERSION stays bare"
+checkout 0.300.0
+apply 0.305.0; status $? 0
+[ "$(pinned)" = 0.305.0 ] || nope "BYNK_VERSION is $(pinned)"
+ok
+
+t "marked lines move with it, and unmarked versions stay"
+checkout v0.300.0
+apply v0.305.0; status $? 0
+grep -qx 'version: 0.305.0   # bynk-pin' "$work/repo/docs/usage.md" || nope "usage.md: $(cat "$work/repo/docs/usage.md")"
+grep -qx 'floor: 0.290.0' "$work/repo/docs/usage.md" || nope "the unmarked floor moved"
+grep -qx 'bynk-version: "v0.305.0", // bynk-pin' "$work/repo/metadata.typ" || nope "metadata.typ: $(cat "$work/repo/metadata.typ")"
+ok
+
+t "the same release, an older one, or a pre-release changes nothing"
+checkout v0.300.0
+for tag in v0.300.0 0.299.9 v0.310.0-rc1; do
+  : >"$GITHUB_OUTPUT"
+  apply "$tag"; status $? 0
+  out "changed=false"
+done
+[ "$(pinned)" = v0.300.0 ] || nope "BYNK_VERSION is $(pinned)"
+[ -z "$(git -C "$work/repo" status --porcelain)" ] || nope "the tree changed"
+ok
+
+t "versions compare as versions, not strings"
+checkout v0.99.0
+apply v0.100.0; status $? 0
+out "changed=true"
+ok
+
+t "no BYNK_VERSION warns and changes nothing"
+checkout ""
+apply v0.305.0; status $? 0
+out "changed=false"
+grep -q "^::warning::bump is on, but there is no BYNK_VERSION" "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
+ok
+
+t "a BYNK_VERSION that is not a version fails"
+checkout latest
+apply v0.305.0; status $? 1
+ok
+
+t "propose pushes the branch and opens the pull request"
+checkout v0.300.0
+apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+[ "$(git -C "$work/origin.git" show canary/bynk-v0.305.0:BYNK_VERSION)" = v0.305.0 ] || nope "the pushed branch has no bump"
+git -C "$work/origin.git" log -1 --format='%an %s' canary/bynk-v0.305.0 | grep -qx 'bump\[bot\] Move to Bynk 0.305.0' || nope "commit: $(git -C "$work/origin.git" log -1 --format='%an %s' canary/bynk-v0.305.0)"
+called "-X GET repos/o/r/pulls -f state=open"
+called "-X POST repos/o/r/pulls -f title=Move to Bynk 0.305.0 -f head=canary/bynk-v0.305.0 -f base=main"
+called "\`BYNK_VERSION\`: 0.300.0 → 0.305.0"
+called "\`docs/usage.md\`: the lines marked \`bynk-pin\`"
+not_called "Merging this deploys it"
+not_called "graphql"
+out "number=12"
+ok
+
+t "a repository that deploys says so"
+checkout v0.300.0
+printf 'name: Deploy\n' >"$work/repo/.github/workflows/deploy.yml"
+git -C "$work/repo" add -A && git -C "$work/repo" commit -qm deploy
+apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+called "Merging this deploys it with Bynk 0.305.0."
+ok
+
+t "an open pull request for the same release is updated, not duplicated"
+checkout v0.300.0
+apply v0.305.0 && FAKE_PULLS='[{"number":7,"head":{"ref":"canary/bynk-v0.305.0"}}]' propose 0.300.0 0.305.0; status $? 0
+not_called "-X POST repos/o/r/pulls"
+not_called "-X PATCH"
+out "number=7"
+ok
+
+t "a bump for an older release is closed as superseded; other pull requests are not"
+checkout v0.300.0
+apply v0.305.0 && FAKE_PULLS='[{"number":5,"head":{"ref":"canary/bynk-v0.303.0"}},{"number":6,"head":{"ref":"feature"}}]' \
+  propose 0.300.0 0.305.0; status $? 0
+called "-X POST repos/o/r/issues/5/comments -f body=Superseded by #12, the move to Bynk 0.305.0."
+called "-X PATCH repos/o/r/pulls/5 -f state=closed"
+called "-X DELETE repos/o/r/git/refs/heads/canary/bynk-v0.303.0"
+not_called "pulls/6"
+ok
+
+t "auto-merge is turned on when asked"
+checkout v0.300.0
+apply v0.305.0 && AUTO_MERGE=true propose 0.300.0 0.305.0; status $? 0
+called "graphql -f query=mutation"
+called "-f id=PR_node12"
+ok
+
+t "auto-merge that the repository refuses is a warning, not a failure"
+checkout v0.300.0
+apply v0.305.0 && FAKE_AUTOMERGE_FAIL=1 AUTO_MERGE=true propose 0.300.0 0.305.0; status $? 0
+grep -q '^::warning::Could not turn on auto-merge' "$work/stdout" || nope "no warning: $(cat "$work/stdout")"
+ok
+
+t "propose with nothing applied fails"
+checkout v0.300.0
+propose 0.300.0 0.305.0; status $? 1
 ok
 
 # --- the real registry ------------------------------------------------------

@@ -3,6 +3,8 @@
 The canary re-runs the checks of every enrolled Bynk example repository, and
 every enrolled action repository, against a Bynk release. When a release breaks
 one, it opens an issue there, and closes the issue again once the canary passes.
+When a newer release passes, it opens a pull request there moving the
+repository's pin to it.
 
 ## How it fits together
 
@@ -22,6 +24,7 @@ flowchart LR
   E1 -- "uses @v1" --> C
   E2 -- "uses @v1" --> C
   C --> I["canary issue<br/>open / comment / close"]
+  C -- "bump App token" --> P["bump pull request<br/>BYNK_VERSION → release"]
   C -. "OIDC token (id-token: write)" .-> B["compat board<br/>POST /v2/runs"]
 ```
 
@@ -30,7 +33,7 @@ flowchart LR
 | [`repos.json`](repos.json) | The registry: every enrolled repository and its `kind` (`example`, `action`, `app` or `book`). Validated against [`repos.schema.json`](repos.schema.json) on every pull request. |
 | [`dispatch-canary.yml`](../.github/workflows/dispatch-canary.yml) | The one central trigger. It resolves `latest` to an exact version **once**, so every repository tests the same release, then sends each one a `bynk-canary` `repository_dispatch`. A failed dispatch doesn't stop the rest; every result goes in the job summary, and the run fails at the end if any dispatch failed. |
 | [`bynk-canary.yml`](../workflow-templates/bynk-canary.yml) (starter workflow) | What each enrolled repository adds. It listens for `bynk-canary` (and `workflow_dispatch`), and calls `canary.yml`. It has no `schedule` of its own. |
-| [`canary.yml`](../.github/workflows/canary.yml) | The reusable workflow. It resolves the version with `setup-bynk`, runs `bynk-ci` and/or a `bynk-deploy` dry run at that exact version, then a result job opens, updates or closes the `canary` issue ([`scripts/issue.sh`](scripts/issue.sh)) and sends the optional report ([`scripts/report.sh`](scripts/report.sh)). Its outputs are `result` (`pass` or `fail`) and `bynk-version`. |
+| [`canary.yml`](../.github/workflows/canary.yml) | The reusable workflow. It resolves the version with `setup-bynk`, runs `bynk-ci` and/or a `bynk-deploy` dry run at that exact version, then a result job opens, updates or closes the `canary` issue ([`scripts/issue.sh`](scripts/issue.sh)) and sends the optional report ([`scripts/report.sh`](scripts/report.sh)). With `bump`, a pass also proposes moving the pin ([`scripts/bump.sh`](scripts/bump.sh)). Its outputs are `result` (`pass` or `fail`) and `bynk-version`. |
 
 ### Issues
 
@@ -40,6 +43,50 @@ label if it is missing. If a `canary` issue is already open, it comments on that
 issue instead, so there is one issue per break, not one per run. On the next
 pass it comments that the canary passes with the new version and closes the
 issue. All of this goes through `gh api` and REST endpoints only.
+
+### Pin bumps
+
+Each enrolled repository keeps its Bynk version in one file, `BYNK_VERSION`
+at its root, holding one exact version such as `v0.404.0`. Its workflows read
+it (`version-file: BYNK_VERSION` on setup-bynk, bynk-ci and bynk-deploy), so
+there is one pin to move. A version that can't be read from the file, in a
+README sample or a book's metadata say, goes on a line that also says
+`bynk-pin`, in a comment:
+
+```yaml
+version: 0.404.0   # bynk-pin
+```
+
+With `bump: true`, when the canary passes on the default branch with a final
+release newer than `BYNK_VERSION`, the bump job:
+
+1. writes the release to `BYNK_VERSION` (keeping its leading `v`, or its lack
+   of one), and to the first version on each line marked `bynk-pin`. Every
+   other version in the repository is left alone, such as a minimum version
+   in a README or a fixture's;
+2. commits that as the bump App's bot, and force-pushes `canary/bynk-v<version>`;
+3. opens a pull request onto the default branch, **Move to Bynk \<version\>**,
+   or leaves the open one for that release, updated. Its own checks run at
+   the new version, because the App's push starts them;
+4. closes any bump pull request for an older release as superseded, and
+   deletes its branch;
+5. with `bump-auto-merge: true`, turns on auto-merge, so the pull request
+   merges once its checks pass. That needs "Allow auto-merge" in the
+   repository's settings; without it, the job warns and the pull request
+   waits for a person.
+
+A pre-release, the release already pinned, or an older one does nothing. A
+repository with `bump: true` but no `BYNK_VERSION` gets a warning. A release
+that fails the canary gets the issue instead, and its pin stays put until
+someone fixes the break and a later pass proposes it.
+
+The bump goes through a GitHub App, not `GITHUB_TOKEN`: the org doesn't let
+`GITHUB_TOKEN` open pull requests, and a pull request it opened would start
+no workflows. The App's client id and private key are the organisation
+secrets `BUMP_APP_ID` and `BUMP_APP_KEY`, which the caller passes with
+`secrets: inherit`. The App needs **Contents** and **Pull requests**: read and
+write, on every repository that turns `bump` on. Without the secrets, the job
+warns and skips.
 
 ### `canary.yml` inputs
 
@@ -57,10 +104,13 @@ issue. All of this goes through `gh api` and REST endpoints only.
 | `report` | `true` | Report the result to the compat board, authenticated by the run's GitHub OIDC token. The self-test turns it off. |
 | `board-url` | `https://compat-board.bynk-lang.workers.dev` | Where an OIDC report goes (`<board-url>/v2/runs`), and the token's audience. |
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
+| `bump` | `false` | Propose moving `BYNK_VERSION` to a newer release that passes. See [pin bumps](#pin-bumps). Needs `secrets: inherit`. |
+| `bump-auto-merge` | `false` | Turn on auto-merge for the bump pull request. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 
-The secrets `report-url` and `report-key` are ignored, and declared only so
-callers that still pass them keep working.
+The secrets `BUMP_APP_ID` and `BUMP_APP_KEY` are the bump App's, which
+`secrets: inherit` passes from the organisation. `report-url` and `report-key`
+are ignored, and declared only so callers that still pass them keep working.
 
 The caller must grant `contents: read`, `issues: write` and `id-token: write`,
 even with `open-issue: false` and `report: false`, because the result job asks
@@ -112,7 +162,9 @@ release. A manual run with `latest` resolves the version twice, once in each job
    [`workflow-templates/bynk-canary.yml`](../workflow-templates/bynk-canary.yml)).
    Set `kind`, `source`, `working-directory` and `deploy-dry-run` to suit the
    repository, and commit it to the **default branch**:
-   `repository_dispatch` only runs workflows there.
+   `repository_dispatch` only runs workflows there. The template has
+   `bump: true`; add a `BYNK_VERSION` file with the version you pin, and point
+   the workflows at it (see [pin bumps](#pin-bumps)).
 2. **Add a registry entry** to [`repos.json`](repos.json) in a pull request here:
 
    ```json
@@ -121,7 +173,8 @@ release. A manual run with `latest` resolves the version twice, once in each job
 
 3. **Install the canary App on the repository** (org settings → GitHub Apps →
    the canary App → Configure → Repository access). Without it, the dispatch
-   fails with a 404 that names the repository.
+   fails with a 404 that names the repository. Install the bump App there too,
+   or the bump job fails to mint its token.
 
 Then run the dispatcher by hand for just that repository (below) and check that
 a run appears in its Actions tab. A dispatch that returns success only means
@@ -206,7 +259,8 @@ run sent it. The payload and both authentication schemes are specified in
 - [`ci.yml`](../.github/workflows/ci.yml) validates `repos.json` (schema, and
   each `repo` once), runs actionlint on every workflow and starter template, and
   shellchecks and unit-tests the scripts ([`test/run.sh`](test/run.sh), with
-  `gh` and `curl` replaced by fakes in [`test/bin/`](test/bin)).
+  `gh` and `curl` replaced by fakes in [`test/bin/`](test/bin)). The bump
+  tests push to a local bare repository standing in for `origin`.
 - [`canary-self-test.yml`](../.github/workflows/canary-self-test.yml) calls
   `canary.yml` from the same commit against [`test/fixture/`](test/fixture),
   which has one context and one test. It runs at a pinned version (with the

@@ -5,7 +5,9 @@
 # It runs the repository's checks against one Bynk release, then, in a result
 # job that always runs: keeps one `canary` issue per break (opened on failure,
 # commented on while it lasts, closed on the next pass), and posts the result
-# to the compat board, authenticated by the run's GitHub OIDC token.
+# to the compat board, authenticated by the run's GitHub OIDC token. With
+# `bump`, a pass with a release newer than the repository's BYNK_VERSION also
+# opens a pull request moving the pin to it.
 # See canary/README.md.
 name: Bynk canary
 
@@ -71,6 +73,22 @@ on:
           to assert on a deliberately broken fixture.
         type: boolean
         default: true
+      bump:
+        description: >-
+          When the canary passes on the default branch with a final release
+          newer than the repository's BYNK_VERSION file, open a pull request
+          moving it (and any line marked `bynk-pin`) to that release, closing
+          any bump for an older one. Needs the BUMP_APP_ID and BUMP_APP_KEY
+          secrets (the caller passes `secrets: inherit`); without them it
+          warns and skips.
+        type: boolean
+        default: false
+      bump-auto-merge:
+        description: >-
+          Turn on auto-merge for the bump pull request, so it merges once its
+          checks pass. Needs "Allow auto-merge" in the repository's settings.
+        type: boolean
+        default: false
       canary-ref:
         description: >-
           The ref of bynk-lang/.github to take the issue and report scripts
@@ -83,6 +101,15 @@ on:
         required: false
       report-key:
         description: Ignored, as report-url.
+        required: false
+      BUMP_APP_ID:
+        description: >-
+          The client id of the GitHub App that opens bump pull requests
+          (repository permissions Contents and Pull requests, read and write).
+          An organisation secret; `secrets: inherit` passes it.
+        required: false
+      BUMP_APP_KEY:
+        description: That App's private key.
         required: false
     outputs:
       result:
@@ -257,3 +284,81 @@ jobs:
         run: |
           echo "::error::The canary fails with Bynk ${BYNK_VERSION}"
           exit 1
+
+  # The org does not let GITHUB_TOKEN open pull requests, and a pull request
+  # it opened would start no workflows, so the bump goes through a GitHub App.
+  # Only a pass on the default branch counts: a manual run on another branch
+  # tested that branch, not what the bump would change.
+  bump:
+    name: Propose the pin bump
+    needs: result
+    if: >-
+      inputs.bump && needs.result.outputs.result == 'pass'
+      && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {} # the App token does the writing
+    steps:
+      - name: Check the App secrets
+        id: secrets
+        env:
+          APP_ID: ${{ secrets.BUMP_APP_ID }}
+          APP_KEY: ${{ secrets.BUMP_APP_KEY }}
+          BYNK_VERSION: ${{ needs.result.outputs.bynk-version }}
+        run: |
+          if [ -n "$APP_ID" ] && [ -n "$APP_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::bump is on, but BUMP_APP_ID / BUMP_APP_KEY did not reach the canary (does the caller pass secrets: inherit?), so it cannot propose moving BYNK_VERSION to ${BYNK_VERSION}"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mint the bump token
+        if: steps.secrets.outputs.configured == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.BUMP_APP_ID }}
+          private-key: ${{ secrets.BUMP_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out the default branch
+        if: steps.secrets.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Fetch the canary scripts
+        if: steps.secrets.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: bynk-lang/.github
+          ref: ${{ inputs.canary-ref }}
+          path: .bynk-canary
+          sparse-checkout: canary/scripts
+          persist-credentials: false
+
+      - name: Move the pins
+        if: steps.secrets.outputs.configured == 'true'
+        id: apply
+        env:
+          BYNK_VERSION: ${{ needs.result.outputs.bynk-version }}
+        run: .bynk-canary/canary/scripts/bump.sh apply "$BYNK_VERSION"
+
+      - name: Open or update the bump pull request
+        if: steps.apply.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.repository.default_branch }}
+          FROM: ${{ steps.apply.outputs.from }}
+          TO: ${{ steps.apply.outputs.to }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          AUTO_MERGE: ${{ inputs.bump-auto-merge }}
+        run: |
+          uid="$(gh api "users/${APP_SLUG}[bot]" --jq .id)"
+          BOT_NAME="${APP_SLUG}[bot]" BOT_EMAIL="${uid}+${APP_SLUG}[bot]@users.noreply.github.com" \
+            .bynk-canary/canary/scripts/bump.sh propose
