@@ -246,7 +246,7 @@ checkout() {
   git init -q --bare "$work/origin.git"
   git init -q -b main "$work/repo"
   (
-    cd "$work/repo"
+    cd "$work/repo" || exit
     git config user.name t && git config user.email t@t
     if [ -n "$1" ]; then printf '%s\n' "$1" >BYNK_VERSION; fi
     mkdir -p .github/workflows docs
@@ -322,8 +322,8 @@ apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
 git -C "$work/origin.git" log -1 --format='%an %s' canary/bynk-v0.305.0 | grep -qx 'bump\[bot\] Move to Bynk 0.305.0' || nope "commit: $(git -C "$work/origin.git" log -1 --format='%an %s' canary/bynk-v0.305.0)"
 called "-X GET repos/o/r/pulls -f state=open"
 called "-X POST repos/o/r/pulls -f title=Move to Bynk 0.305.0 -f head=canary/bynk-v0.305.0 -f base=main"
-called '`BYNK_VERSION`: 0.300.0 → 0.305.0'
-called '`docs/usage.md`: the lines marked `bynk-pin`'
+called "\`BYNK_VERSION\`: 0.300.0 → 0.305.0"
+called "\`docs/usage.md\`: the lines marked \`bynk-pin\`"
 not_called "Merging this deploys it"
 not_called "graphql"
 out "number=12"
@@ -339,9 +339,7 @@ ok
 
 t "an open pull request for the same release is updated, not duplicated"
 checkout v0.300.0
-FAKE_PULLS='[{"number":7,"head":{"ref":"canary/bynk-v0.305.0"}}]'
-export FAKE_PULLS
-apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+apply v0.305.0 && FAKE_PULLS='[{"number":7,"head":{"ref":"canary/bynk-v0.305.0"}}]' propose 0.300.0 0.305.0; status $? 0
 not_called "-X POST repos/o/r/pulls"
 not_called "-X PATCH"
 out "number=7"
@@ -349,9 +347,8 @@ ok
 
 t "a bump for an older release is closed as superseded; other pull requests are not"
 checkout v0.300.0
-FAKE_PULLS='[{"number":5,"head":{"ref":"canary/bynk-v0.303.0"}},{"number":6,"head":{"ref":"feature"}}]'
-export FAKE_PULLS
-apply v0.305.0 && propose 0.300.0 0.305.0; status $? 0
+apply v0.305.0 && FAKE_PULLS='[{"number":5,"head":{"ref":"canary/bynk-v0.303.0"}},{"number":6,"head":{"ref":"feature"}}]' \
+  propose 0.300.0 0.305.0; status $? 0
 called "-X POST repos/o/r/issues/5/comments -f body=Superseded by #12, the move to Bynk 0.305.0."
 called "-X PATCH repos/o/r/pulls/5 -f state=closed"
 called "-X DELETE repos/o/r/git/refs/heads/canary/bynk-v0.303.0"
