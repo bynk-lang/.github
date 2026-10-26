@@ -1,0 +1,28 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal example is best. Include code, commands and output.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `bynkc --version`, or the action or tool version.
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, runner, Node and wrangler versions, anything relevant.
