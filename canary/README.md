@@ -75,6 +75,11 @@ release newer than `BYNK_VERSION`, the bump job:
    repository's settings; without it, the job warns and the pull request
    waits for a person.
 
+If someone has pushed to an open bump's branch (a fix the release needs, say,
+or a line the marker can't reach), a later canary run for the same release
+leaves the branch alone, with a notice, rather than pushing over it. A branch
+with only the bot's commits is rebuilt on the current default branch.
+
 A pre-release, the release already pinned, or an older one does nothing. A
 repository with `bump: true` but no `BYNK_VERSION` gets a warning. A release
 that fails the canary gets the issue instead, and its pin stays put until

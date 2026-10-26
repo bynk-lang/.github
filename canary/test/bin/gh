@@ -9,6 +9,7 @@
 #   FAKE_FAIL_REPOS    space-separated repos whose dispatch fails with 404
 #   FAKE_PULLS         JSON returned by GET repos/*/pulls (default [])
 #   FAKE_AUTOMERGE_FAIL  1 if enabling auto-merge fails
+#   FAKE_COMPARE       JSON returned by GET repos/*/compare/* (default no commits)
 #
 # Like `gh api`, it applies --jq to the response.
 set -euo pipefail
@@ -47,6 +48,7 @@ case "$method $path" in
   "POST repos/"*/comments) respond '{"id":1}' ;;
   "PATCH repos/"*/issues/*) respond '{"state":"closed"}' ;;
   "GET repos/"*/pulls) respond "${FAKE_PULLS:-[]}" ;;
+  "GET repos/"*/compare/*) compare='{"commits":[]}'; respond "${FAKE_COMPARE:-$compare}" ;;
   "POST repos/"*/pulls) respond '{"number":12,"html_url":"https://github.com/o/r/pull/12","node_id":"PR_node12"}' ;;
   "PATCH repos/"*/pulls/*) respond '{"state":"closed"}' ;;
   "DELETE repos/"*/git/refs/heads/*) ;;
