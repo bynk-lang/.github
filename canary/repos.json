@@ -60,6 +60,11 @@
       "repo": "bynk-lang/playground",
       "kind": "app",
       "description": "Playground: unit tests, every gallery example through the release's wasm compiler, and the share service"
+    },
+    {
+      "repo": "bynk-lang/vscode-bynk",
+      "kind": "app",
+      "description": "VS Code extension: its pin-bump workflow moves bynkServerVersion on a dispatch"
     }
   ]
 }
