@@ -37,6 +37,11 @@
       "description": "Shop: four contexts over Service Bindings and events, with end-to-end scenarios"
     },
     {
+      "repo": "bynk-lang/showcase",
+      "kind": "example",
+      "description": "Showcase: small projects, one language feature each, checked project by project"
+    },
+    {
       "repo": "bynk-lang/bynk-guide",
       "kind": "book",
       "description": "Guide: every chapter listing compiles, formats and builds"
