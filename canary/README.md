@@ -88,8 +88,17 @@ someone fixes the break and a later pass proposes it.
 The bump goes through a GitHub App, not `GITHUB_TOKEN`: the org doesn't let
 `GITHUB_TOKEN` open pull requests, and a pull request it opened would start
 no workflows. The App's client id and private key are the organisation
-secrets `BUMP_APP_ID` and `BUMP_APP_KEY`, which the caller passes with
-`secrets: inherit`. The App needs **Contents** and **Pull requests**: read and
+secrets `BUMP_APP_ID` and `BUMP_APP_KEY`, which the caller passes by name,
+not with `secrets: inherit` (which would also hand the called workflow every
+other secret the caller can see):
+
+```yaml
+    secrets:
+      BUMP_APP_ID: ${{ secrets.BUMP_APP_ID }}
+      BUMP_APP_KEY: ${{ secrets.BUMP_APP_KEY }}
+```
+
+The App needs **Contents** and **Pull requests**: read and
 write, on every repository that turns `bump` on. Without the secrets, the job
 warns and skips.
 
@@ -109,12 +118,12 @@ warns and skips.
 | `report` | `true` | Report the result to the compat board, authenticated by the run's GitHub OIDC token. The self-test turns it off. |
 | `board-url` | `https://compat-board.bynk-lang.workers.dev` | Where an OIDC report goes (`<board-url>/v2/runs`), and the token's audience. |
 | `fail-run` | `true` | Fail the run when the checks fail. The self-test turns it off for its deliberately broken fixture. |
-| `bump` | `false` | Propose moving `BYNK_VERSION` to a newer release that passes. See [pin bumps](#pin-bumps). Needs `secrets: inherit`. |
+| `bump` | `false` | Propose moving `BYNK_VERSION` to a newer release that passes. See [pin bumps](#pin-bumps). Needs the two bump secrets passed by name (see [pin bumps](#pin-bumps)). |
 | `bump-auto-merge` | `false` | Turn on auto-merge for the bump pull request. |
 | `canary-ref` | `v1` | The ref of this repository to take `scripts/` from. A reusable workflow cannot see the ref it was called at, so keep this in step with the `@ref` you call. |
 
-The secrets `BUMP_APP_ID` and `BUMP_APP_KEY` are the bump App's, which
-`secrets: inherit` passes from the organisation. `report-url` and `report-key`
+The secrets `BUMP_APP_ID` and `BUMP_APP_KEY` are the bump App's, which the
+caller passes by name from the organisation. `report-url` and `report-key`
 are ignored, and declared only so callers that still pass them keep working.
 
 The caller must grant `contents: read`, `issues: write` and `id-token: write`,
