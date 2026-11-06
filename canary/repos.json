@@ -70,6 +70,11 @@
       "repo": "bynk-lang/vscode-bynk",
       "kind": "app",
       "description": "VS Code extension: its pin-bump workflow moves bynkServerVersion on a dispatch"
+    },
+    {
+      "repo": "bynk-lang/github-hooks",
+      "kind": "app",
+      "description": "GitHub App webhooks: records deliveries, read API, welcomes, live CI and PR flow dashboards"
     }
   ]
 }
