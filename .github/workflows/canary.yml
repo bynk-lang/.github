@@ -79,7 +79,7 @@ on:
           newer than the repository's BYNK_VERSION file, open a pull request
           moving it (and any line marked `bynk-pin`) to that release, closing
           any bump for an older one. Needs the BUMP_APP_ID and BUMP_APP_KEY
-          secrets (the caller passes `secrets: inherit`); without them it
+          secrets (the caller passes them by name); without them it
           warns and skips.
         type: boolean
         default: false
@@ -106,7 +106,7 @@ on:
         description: >-
           The client id of the GitHub App that opens bump pull requests
           (repository permissions Contents and Pull requests, read and write).
-          An organisation secret; `secrets: inherit` passes it.
+          An organisation secret; the caller passes it by name.
         required: false
       BUMP_APP_KEY:
         description: That App's private key.
@@ -309,7 +309,7 @@ jobs:
           if [ -n "$APP_ID" ] && [ -n "$APP_KEY" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::bump is on, but BUMP_APP_ID / BUMP_APP_KEY did not reach the canary (does the caller pass secrets: inherit?), so it cannot propose moving BYNK_VERSION to ${BYNK_VERSION}"
+            echo "::warning::bump is on, but BUMP_APP_ID / BUMP_APP_KEY did not reach the canary (does the caller pass them by name under secrets:?), so it cannot propose moving BYNK_VERSION to ${BYNK_VERSION}"
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
 
