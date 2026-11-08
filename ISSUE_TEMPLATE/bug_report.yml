@@ -20,7 +20,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: Output of `bynkc --version`, or the action or tool version.
+      description: Output of `bynk --version`, or the action or tool version.
   - type: textarea
     id: env
     attributes:
