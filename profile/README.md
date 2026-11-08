@@ -13,7 +13,7 @@ releases.
 
 | Repository | What it does |
 | ---------- | ------------ |
-| [`setup-bynk`](https://github.com/bynk-lang/setup-bynk) | Install the toolchain (`bynkc`, `bynk`, `bynkc-lsp`) on a runner. |
+| [`setup-bynk`](https://github.com/bynk-lang/setup-bynk) | Install the toolchain (`bynk`, `bynk-lsp`) on a runner. |
 | [`bynk-ci`](https://github.com/bynk-lang/bynk-ci) | The standard quality gate (format, type check, tests) in one step. |
 | [`bynk-deploy`](https://github.com/bynk-lang/bynk-deploy) | Compile a project and deploy the generated Worker(s) to Cloudflare. |
 

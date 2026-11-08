@@ -33,7 +33,7 @@ on:
       format:
         description: >-
           Run bynk-ci's format check. On a directory `source`, this needs
-          Bynk 0.307.0 or later: before that, `bynkc fmt` took files only.
+          Bynk 0.307.0 or later: before that, `bynk fmt` took files only.
         type: boolean
         default: true
       deploy-dry-run:
@@ -139,7 +139,7 @@ jobs:
       # from the tool cache, so the run records what it actually tested.
       - name: Resolve Bynk
         id: setup
-        uses: bynk-lang/setup-bynk@v1
+        uses: bynk-lang/setup-bynk@v2
         with:
           version: ${{ inputs.version }}
 
