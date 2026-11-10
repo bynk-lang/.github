@@ -139,7 +139,7 @@ jobs:
       # from the tool cache, so the run records what it actually tested.
       - name: Resolve Bynk
         id: setup
-        uses: bynk-lang/setup-bynk@v2
+        uses: bynk-lang/setup-bynk@3ee807123be2578fd5d5be518fbc2b489aef6171 # v2.0.1
         with:
           version: ${{ inputs.version }}
 
@@ -156,7 +156,7 @@ jobs:
         id: ci
         if: inputs.ci
         continue-on-error: true
-        uses: bynk-lang/bynk-ci@v1
+        uses: bynk-lang/bynk-ci@16971dbe8db701e2cd3905f68f9e2f50e84ab366 # v1.2.1
         with:
           version: ${{ steps.version.outputs.bynk-version }}
           working-directory: ${{ inputs.working-directory }}
@@ -167,7 +167,7 @@ jobs:
         id: deploy
         if: inputs.deploy-dry-run
         continue-on-error: true
-        uses: bynk-lang/bynk-deploy@v2
+        uses: bynk-lang/bynk-deploy@422b47aeb37ba7ad0d8ba1f87755ae7e422dc462 # v2.2.2
         with:
           version: ${{ steps.version.outputs.bynk-version }}
           working-directory: ${{ inputs.working-directory }}
