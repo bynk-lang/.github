@@ -23,8 +23,8 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: bynk-lang/bynk-deploy@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: bynk-lang/bynk-deploy@422b47aeb37ba7ad0d8ba1f87755ae7e422dc462 # v2.2.2
         with:
           version: latest   # pin an exact version for reproducible deploys
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}

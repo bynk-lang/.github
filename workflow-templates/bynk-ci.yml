@@ -16,8 +16,8 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: bynk-lang/bynk-ci@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: bynk-lang/bynk-ci@16971dbe8db701e2cd3905f68f9e2f50e84ab366 # v1.2.1
         with:
           version: latest   # pin an exact version for reproducible CI
           source: src
