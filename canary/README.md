@@ -156,10 +156,12 @@ jobs:
   canary:
     needs: tests
     if: ${{ !cancelled() }}
-    uses: bynk-lang/.github/.github/workflows/canary.yml@v1
+    uses: bynk-lang/.github/.github/workflows/canary.yml@a3e43de009be70aef77cb53e54994b824859a58b # v1.1.3
     with:
       version: ${{ github.event.client_payload.version || inputs.version || 'latest' }}
       upstream-result: ${{ needs.tests.result }}
+      # Name the same commit as `uses:` above (see `canary-ref` in the inputs table).
+      canary-ref: a3e43de009be70aef77cb53e54994b824859a58b
 ```
 
 A repository whose only checks are its own (a book's listings, say) sets
